@@ -42,14 +42,9 @@ import org.xml.sax.InputSource;
  * Test class for {@code XMLPropertiesConfiguration}.
  *
  */
-public class TestXMLPropertiesConfiguration
-{
+public class TestXMLPropertiesConfiguration {
     /** Constant for the name of the test file. */
     private static final String TEST_PROPERTIES_FILE = "test.properties.xml";
-
-    /** A helper object for creating temporary files. */
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
 
     /**
      * Helper method for loading a configuration file.
@@ -58,35 +53,23 @@ public class TestXMLPropertiesConfiguration
      * @return the configuration instance
      * @throws ConfigurationException if an error occurs
      */
-    private static XMLPropertiesConfiguration load(final String fileName)
-            throws ConfigurationException
-    {
+    private static XMLPropertiesConfiguration load(final String fileName) throws ConfigurationException {
         final XMLPropertiesConfiguration conf = new XMLPropertiesConfiguration();
         final FileHandler handler = new FileHandler(conf);
         handler.load(fileName);
         return conf;
     }
 
-    @Test
-    public void testLoad() throws Exception
-    {
-        final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
-        assertEquals("header", "Description of the property list", conf.getHeader());
-
-        assertFalse("The configuration is empty", conf.isEmpty());
-        assertEquals("'key1' property", "value1", conf.getProperty("key1"));
-        assertEquals("'key2' property", "value2", conf.getProperty("key2"));
-        assertEquals("'key3' property", "value3", conf.getProperty("key3"));
-    }
+    /** A helper object for creating temporary files. */
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
 
     @Test
-    public void testDOMLoad() throws Exception
-    {
+    public void testDOMLoad() throws Exception {
         final URL location = ConfigurationAssert.getTestURL(TEST_PROPERTIES_FILE);
         final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         final DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        dBuilder.setEntityResolver((publicId, systemId) -> new InputSource(getClass().getClassLoader()
-                .getResourceAsStream("properties.dtd")));
+        dBuilder.setEntityResolver((publicId, systemId) -> new InputSource(getClass().getClassLoader().getResourceAsStream("properties.dtd")));
         final File file = new File(location.toURI());
         final Document doc = dBuilder.parse(file);
         final XMLPropertiesConfiguration conf = new XMLPropertiesConfiguration(doc.getDocumentElement());
@@ -100,36 +83,7 @@ public class TestXMLPropertiesConfiguration
     }
 
     @Test
-    public void testSave() throws Exception
-    {
-        // load the configuration
-        final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
-
-        // update the configuration
-        conf.addProperty("key4", "value4");
-        conf.clearProperty("key2");
-        conf.setHeader("Description of the new property list");
-
-        // save the configuration
-        final File saveFile = folder.newFile("test2.properties.xml");
-        final FileHandler saveHandler = new FileHandler(conf);
-        saveHandler.save(saveFile);
-
-        // reload the configuration
-        final XMLPropertiesConfiguration conf2 = load(saveFile.getAbsolutePath());
-
-        // test the configuration
-        assertEquals("header", "Description of the new property list", conf2.getHeader());
-
-        assertFalse("The configuration is empty", conf2.isEmpty());
-        assertEquals("'key1' property", "value1", conf2.getProperty("key1"));
-        assertEquals("'key3' property", "value3", conf2.getProperty("key3"));
-        assertEquals("'key4' property", "value4", conf2.getProperty("key4"));
-    }
-
-    @Test
-    public void testDOMSave() throws Exception
-    {
+    public void testDOMSave() throws Exception {
         // load the configuration
         final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
 
@@ -151,6 +105,44 @@ public class TestXMLPropertiesConfiguration
         final DOMSource source = new DOMSource(document);
         final Result result = new StreamResult(saveFile);
         transformer.transform(source, result);
+
+        // reload the configuration
+        final XMLPropertiesConfiguration conf2 = load(saveFile.getAbsolutePath());
+
+        // test the configuration
+        assertEquals("header", "Description of the new property list", conf2.getHeader());
+
+        assertFalse("The configuration is empty", conf2.isEmpty());
+        assertEquals("'key1' property", "value1", conf2.getProperty("key1"));
+        assertEquals("'key3' property", "value3", conf2.getProperty("key3"));
+        assertEquals("'key4' property", "value4", conf2.getProperty("key4"));
+    }
+
+    @Test
+    public void testLoad() throws Exception {
+        final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
+        assertEquals("header", "Description of the property list", conf.getHeader());
+
+        assertFalse("The configuration is empty", conf.isEmpty());
+        assertEquals("'key1' property", "value1", conf.getProperty("key1"));
+        assertEquals("'key2' property", "value2", conf.getProperty("key2"));
+        assertEquals("'key3' property", "value3", conf.getProperty("key3"));
+    }
+
+    @Test
+    public void testSave() throws Exception {
+        // load the configuration
+        final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
+
+        // update the configuration
+        conf.addProperty("key4", "value4");
+        conf.clearProperty("key2");
+        conf.setHeader("Description of the new property list");
+
+        // save the configuration
+        final File saveFile = folder.newFile("test2.properties.xml");
+        final FileHandler saveHandler = new FileHandler(conf);
+        saveHandler.save(saveFile);
 
         // reload the configuration
         final XMLPropertiesConfiguration conf2 = load(saveFile.getAbsolutePath());

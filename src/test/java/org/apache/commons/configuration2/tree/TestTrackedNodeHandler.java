@@ -27,10 +27,14 @@ import org.junit.Test;
  * Test class for {@code TrackedNodeHandler}.
  *
  */
-public class TestTrackedNodeHandler
-{
+public class TestTrackedNodeHandler {
     /** A test root node. */
     private static ImmutableNode root;
+
+    @BeforeClass
+    public static void setUpBeforeClass() throws Exception {
+        root = new ImmutableNode.Builder().name("ROOT").create();
+    }
 
     /** A mock node handler. */
     private NodeHandler<ImmutableNode> parentHandler;
@@ -38,37 +42,17 @@ public class TestTrackedNodeHandler
     /** The handler to be tested. */
     private TrackedNodeHandler handler;
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception
-    {
-        root = new ImmutableNode.Builder().name("ROOT").create();
-    }
-
     @Before
-    public void setUp() throws Exception
-    {
-        @SuppressWarnings("unchecked")
-        final
-        NodeHandler<ImmutableNode> h = EasyMock.createMock(NodeHandler.class);
-        parentHandler = h;
+    public void setUp() throws Exception {
+        parentHandler = EasyMock.createMock(NodeHandler.class);
         handler = new TrackedNodeHandler(root, parentHandler);
-    }
-
-    /**
-     * Tests whether the correct root node is returned.
-     */
-    @Test
-    public void testGetRootNode()
-    {
-        assertSame("Wrong root node", root, handler.getRootNode());
     }
 
     /**
      * Tests whether a parent node can be queried.
      */
     @Test
-    public void testGetParent()
-    {
+    public void testGetParent() {
         final ImmutableNode node = new ImmutableNode.Builder().name("node").create();
         final ImmutableNode parent = new ImmutableNode.Builder().name("parent").create();
         EasyMock.expect(parentHandler.getParent(node)).andReturn(parent);
@@ -76,5 +60,13 @@ public class TestTrackedNodeHandler
 
         assertSame("Wrong parent node", parent, handler.getParent(node));
         EasyMock.verify(parentHandler);
+    }
+
+    /**
+     * Tests whether the correct root node is returned.
+     */
+    @Test
+    public void testGetRootNode() {
+        assertSame("Wrong root node", root, handler.getRootNode());
     }
 }

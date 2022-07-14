@@ -18,6 +18,7 @@
 package org.apache.commons.configuration2.plist;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.io.Reader;
 import java.util.Calendar;
@@ -29,30 +30,21 @@ import org.junit.Test;
 
 /**
  */
-public class TestPropertyListParser
-{
+public class TestPropertyListParser {
     private final PropertyListParser parser = new PropertyListParser((Reader) null);
 
     @Test
-    public void testRemoveQuotes()
-    {
-        assertEquals("unquoted string", "abc", parser.removeQuotes("abc"));
-        assertEquals("quoted string", "abc", parser.removeQuotes("\"abc\""));
-        assertEquals("empty quotes", "", parser.removeQuotes("\"\""));
-        assertEquals("empty string", "", parser.removeQuotes(""));
-        assertEquals("null string", null, parser.removeQuotes(null));
+    public void testFilterData() throws Exception {
+        final byte[] expected = {0x20, 0x20};
+        ArrayAssert.assertEquals("null string", null, parser.filterData(null));
+        ArrayAssert.assertEquals("data with < >", expected, parser.filterData("<2020>"));
+        ArrayAssert.assertEquals("data without < >", expected, parser.filterData("2020"));
+        ArrayAssert.assertEquals("data with space", expected, parser.filterData("20 20"));
+        ArrayAssert.assertEquals("odd length", new byte[] {9, 0x20}, parser.filterData("920"));
     }
 
     @Test
-    public void testUnescapeQuotes()
-    {
-        assertEquals("non escaped quotes", "aaa\"bbb\"ccc", parser.unescapeQuotes("aaa\"bbb\"ccc"));
-        assertEquals("escaped quotes", "aaa\"bbb\"ccc", parser.unescapeQuotes("aaa\\\"bbb\\\"ccc"));
-    }
-
-    @Test
-    public void testParseDate() throws Exception
-    {
+    public void testParseDate() throws Exception {
         final Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.YEAR, 2002);
         calendar.set(Calendar.MONTH, Calendar.MARCH);
@@ -67,13 +59,17 @@ public class TestPropertyListParser
     }
 
     @Test
-    public void testFilterData() throws Exception
-    {
-        final byte[] expected = new byte[] {0x20, 0x20};
-        ArrayAssert.assertEquals("null string", null, parser.filterData(null));
-        ArrayAssert.assertEquals("data with < >", expected, parser.filterData("<2020>"));
-        ArrayAssert.assertEquals("data without < >", expected, parser.filterData("2020"));
-        ArrayAssert.assertEquals("data with space", expected, parser.filterData("20 20"));
-        ArrayAssert.assertEquals("odd length", new byte[]{9, 0x20}, parser.filterData("920"));
+    public void testRemoveQuotes() {
+        assertEquals("unquoted string", "abc", parser.removeQuotes("abc"));
+        assertEquals("quoted string", "abc", parser.removeQuotes("\"abc\""));
+        assertEquals("empty quotes", "", parser.removeQuotes("\"\""));
+        assertEquals("empty string", "", parser.removeQuotes(""));
+        assertNull("null string", parser.removeQuotes(null));
+    }
+
+    @Test
+    public void testUnescapeQuotes() {
+        assertEquals("non escaped quotes", "aaa\"bbb\"ccc", parser.unescapeQuotes("aaa\"bbb\"ccc"));
+        assertEquals("escaped quotes", "aaa\"bbb\"ccc", parser.unescapeQuotes("aaa\\\"bbb\\\"ccc"));
     }
 }

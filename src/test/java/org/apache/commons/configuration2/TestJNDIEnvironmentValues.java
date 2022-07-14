@@ -29,13 +29,11 @@ import java.util.NoSuchElementException;
 import org.junit.Before;
 import org.junit.Test;
 
-public class TestJNDIEnvironmentValues
-{
-    private JNDIConfiguration conf = null;
+public class TestJNDIEnvironmentValues {
+    private JNDIConfiguration conf;
 
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         System.setProperty("java.naming.factory.initial", TestJNDIConfiguration.CONTEXT_FACTORY);
 
         conf = new JNDIConfiguration();
@@ -43,71 +41,26 @@ public class TestJNDIEnvironmentValues
     }
 
     @Test
-    public void testThrowExceptionOnMissing()
-    {
-        assertTrue("Throw Exception Property is not set!", conf.isThrowExceptionOnMissing());
-    }
-
-    @Test
-    public void testSimpleGet() throws Exception
-    {
-        final String s = conf.getString("test.key");
-        assertEquals("jndivalue", s);
-    }
-
-    @Test
-    public void testMoreGets() throws Exception
-    {
-        final String s = conf.getString("test.key");
-        assertEquals("jndivalue", s);
-        assertEquals("jndivalue2", conf.getString("test.key2"));
-        assertEquals(1, conf.getShort("test.short"));
-    }
-
-    @Test(expected = NoSuchElementException.class)
-    public void testGetMissingKey() throws Exception
-    {
-        conf.getString("test.imaginarykey");
-    }
-
-    @Test
-    public void testGetMissingKeyWithDefault() throws Exception
-    {
-        final String result = conf.getString("test.imaginarykey", "bob");
-        assertEquals("bob", result);
-    }
-
-    @Test
-    public void testContainsKey() throws Exception
-    {
-        assertTrue(conf.containsKey("test.key"));
-        assertTrue(!conf.containsKey("test.imaginarykey"));
-    }
-
-    @Test
-    public void testClearProperty()
-    {
+    public void testClearProperty() {
         assertNotNull("null short for the 'test.short' key", conf.getShort("test.short", null));
         conf.clearProperty("test.short");
         assertNull("'test.short' property not cleared", conf.getShort("test.short", null));
     }
 
     @Test
-    public void testIsEmpty()
-    {
-        assertFalse("the configuration shouldn't be empty", conf.isEmpty());
+    public void testContainsKey() throws Exception {
+        assertTrue(conf.containsKey("test.key"));
+        assertFalse(conf.containsKey("test.imaginarykey"));
     }
 
     @Test
-    public void testGetKeys() throws Exception
-    {
+    public void testGetKeys() throws Exception {
         boolean found = false;
         final Iterator<String> it = conf.getKeys();
 
         assertTrue("no key found", it.hasNext());
 
-        while (it.hasNext() && !found)
-        {
+        while (it.hasNext() && !found) {
             found = "test.boolean".equals(it.next());
         }
 
@@ -115,38 +68,68 @@ public class TestJNDIEnvironmentValues
     }
 
     @Test
-    public void testGetKeysWithUnknownPrefix()
-    {
+    public void testGetKeysWithExistingPrefix() {
+        // test for an existing prefix
+        final Iterator<String> it = conf.getKeys("test");
+        boolean found = false;
+        while (it.hasNext() && !found) {
+            found = "test.boolean".equals(it.next());
+        }
+
+        assertTrue("'test.boolean' key not found", found);
+    }
+
+    @Test
+    public void testGetKeysWithKeyAsPrefix() {
+        // test for a prefix matching exactly the key of a property
+        final Iterator<String> it = conf.getKeys("test.boolean");
+        boolean found = false;
+        while (it.hasNext() && !found) {
+            found = "test.boolean".equals(it.next());
+        }
+
+        assertTrue("'test.boolean' key not found", found);
+    }
+
+    @Test
+    public void testGetKeysWithUnknownPrefix() {
         // test for a unknown prefix
         final Iterator<String> it = conf.getKeys("foo.bar");
         assertFalse("no key should be found", it.hasNext());
     }
 
-    @Test
-    public void testGetKeysWithExistingPrefix()
-    {
-        // test for an existing prefix
-        final Iterator<String> it = conf.getKeys("test");
-        boolean found = false;
-        while (it.hasNext() && !found)
-        {
-            found = "test.boolean".equals(it.next());
-        }
-
-        assertTrue("'test.boolean' key not found", found);
+    @Test(expected = NoSuchElementException.class)
+    public void testGetMissingKey() throws Exception {
+        conf.getString("test.imaginarykey");
     }
 
     @Test
-    public void testGetKeysWithKeyAsPrefix()
-    {
-        // test for a prefix matching exactly the key of a property
-        final Iterator<String> it = conf.getKeys("test.boolean");
-        boolean found = false;
-        while (it.hasNext() && !found)
-        {
-            found = "test.boolean".equals(it.next());
-        }
+    public void testGetMissingKeyWithDefault() throws Exception {
+        final String result = conf.getString("test.imaginarykey", "bob");
+        assertEquals("bob", result);
+    }
 
-        assertTrue("'test.boolean' key not found", found);
+    @Test
+    public void testIsEmpty() {
+        assertFalse("the configuration shouldn't be empty", conf.isEmpty());
+    }
+
+    @Test
+    public void testMoreGets() throws Exception {
+        final String s = conf.getString("test.key");
+        assertEquals("jndivalue", s);
+        assertEquals("jndivalue2", conf.getString("test.key2"));
+        assertEquals(1, conf.getShort("test.short"));
+    }
+
+    @Test
+    public void testSimpleGet() throws Exception {
+        final String s = conf.getString("test.key");
+        assertEquals("jndivalue", s);
+    }
+
+    @Test
+    public void testThrowExceptionOnMissing() {
+        assertTrue("Throw Exception Property is not set!", conf.isThrowExceptionOnMissing());
     }
 }

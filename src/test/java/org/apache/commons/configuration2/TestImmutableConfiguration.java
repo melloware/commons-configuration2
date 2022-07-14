@@ -37,19 +37,9 @@ import org.junit.Test;
  * A test class which tests functionality related to immutable configurations.
  *
  */
-public class TestImmutableConfiguration
-{
+public class TestImmutableConfiguration {
     /** Constant for the name of a test properties file. */
     private static final String TEST_FILE = "test.properties";
-
-    /**
-     * Tries to create an immutable configuration from a null object.
-     */
-    @Test(expected = NullPointerException.class)
-    public void testUnmodifiableConfigurationNull()
-    {
-        ConfigurationUtils.unmodifiableConfiguration(null);
-    }
 
     /**
      * Creates a test configuration object filled with properties.
@@ -57,52 +47,9 @@ public class TestImmutableConfiguration
      * @return the test configuration
      * @throws ConfigurationException if an error occurs
      */
-    private static PropertiesConfiguration createTestConfig()
-            throws ConfigurationException
-    {
-        return new FileBasedConfigurationBuilder<>(
-                PropertiesConfiguration.class).configure(
-                new FileBasedBuilderParametersImpl().setFile(ConfigurationAssert
-                        .getTestFile(TEST_FILE))).getConfiguration();
-    }
-
-    /**
-     * Tests whether data can be accessed from an unmodifiable configuration.
-     */
-    @Test
-    public void testUnmodifiableConfigurationAccess()
-            throws ConfigurationException
-    {
-        final Configuration confOrg = createTestConfig();
-        final ImmutableConfiguration conf =
-                ConfigurationUtils.unmodifiableConfiguration(confOrg);
-        assertFalse("Empty", conf.isEmpty());
-        for (final Iterator<String> it = confOrg.getKeys(); it.hasNext();)
-        {
-            final String key = it.next();
-            assertTrue("Key not contained: " + key, conf.containsKey(key));
-            assertEquals("Wrong value for " + key, confOrg.getProperty(key),
-                    conf.getProperty(key));
-        }
-    }
-
-    /**
-     * Tests different access methods for properties.
-     */
-    @Test
-    public void testUnmodifiableConfigurationOtherTypes()
-            throws ConfigurationException
-    {
-        final ImmutableConfiguration conf =
-                ConfigurationUtils
-                        .unmodifiableConfiguration(createTestConfig());
-        assertEquals("Wrong byte", (byte) 10, conf.getByte("test.byte"));
-        assertEquals("Wrong boolean", true, conf.getBoolean("test.boolean"));
-        assertEquals("Wrong double", 10.25, conf.getDouble("test.double"), .05);
-        assertEquals("Wrong float", 20.25f, conf.getFloat("test.float"), .05);
-        assertEquals("Wrong int", 10, conf.getInt("test.integer"));
-        assertEquals("Wrong long", 1000000L, conf.getLong("test.long"));
-        assertEquals("Wrong short", (short) 1, conf.getShort("test.short"));
+    private static PropertiesConfiguration createTestConfig() throws ConfigurationException {
+        return new FileBasedConfigurationBuilder<>(PropertiesConfiguration.class)
+            .configure(new FileBasedBuilderParametersImpl().setFile(ConfigurationAssert.getTestFile(TEST_FILE))).getConfiguration();
     }
 
     /**
@@ -111,56 +58,95 @@ public class TestImmutableConfiguration
      * @param it the iterator
      * @return a set with all keys
      */
-    private static Set<String> fetchKeys(final Iterator<String> it)
-    {
+    private static Set<String> fetchKeys(final Iterator<String> it) {
         final Set<String> keys = new HashSet<>();
-        while (it.hasNext())
-        {
+        while (it.hasNext()) {
             keys.add(it.next());
         }
         return keys;
     }
 
     /**
+     * Tests that exceptions thrown by the wrapped configuration are handled correctly.
+     */
+    @Test
+    public void testExceptionHandling() {
+        final PropertiesConfiguration config = new PropertiesConfiguration();
+        final String property = "nonExistingProperty";
+        config.setThrowExceptionOnMissing(true);
+        final ImmutableConfiguration ic = ConfigurationUtils.unmodifiableConfiguration(config);
+        try {
+            ic.getString(property);
+            fail("Exception for missing property not thrown!");
+        } catch (final NoSuchElementException e) {
+            assertThat("Wrong message", e.getMessage(), containsString(property));
+        }
+    }
+
+    /**
+     * Tests whether an immutable subset can be queried.
+     */
+    @Test
+    public void testImmutableSubset() throws ConfigurationException {
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(createTestConfig());
+        final ImmutableConfiguration subset = conf.immutableSubset("test");
+        assertFalse("No content", subset.isEmpty());
+        assertEquals("Wrong value", 1000000, subset.getLong("long"));
+    }
+
+    /**
+     * Tests whether data can be accessed from an unmodifiable configuration.
+     */
+    @Test
+    public void testUnmodifiableConfigurationAccess() throws ConfigurationException {
+        final Configuration confOrg = createTestConfig();
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(confOrg);
+        assertFalse("Empty", conf.isEmpty());
+        for (final Iterator<String> it = confOrg.getKeys(); it.hasNext();) {
+            final String key = it.next();
+            assertTrue("Key not contained: " + key, conf.containsKey(key));
+            assertEquals("Wrong value for " + key, confOrg.getProperty(key), conf.getProperty(key));
+        }
+    }
+
+    /**
+     * Tests that a cast to a mutable configuration is not possible.
+     */
+    @Test(expected = ClassCastException.class)
+    public void testUnmodifiableConfigurationCast() throws ConfigurationException {
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(createTestConfig());
+        final Configuration mutableConf = (Configuration) conf;
+        mutableConf.clear();
+    }
+
+    /**
      * Tests an iteration over the keys of the immutable configuration.
      */
     @Test
-    public void testUnmodifiableConfigurationIterate()
-            throws ConfigurationException
-    {
+    public void testUnmodifiableConfigurationIterate() throws ConfigurationException {
         final Configuration confOrg = createTestConfig();
-        final ImmutableConfiguration conf =
-                ConfigurationUtils.unmodifiableConfiguration(confOrg);
-        assertEquals("Different keys", fetchKeys(confOrg.getKeys()),
-                fetchKeys(conf.getKeys()));
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(confOrg);
+        assertEquals("Different keys", fetchKeys(confOrg.getKeys()), fetchKeys(conf.getKeys()));
     }
 
     /**
      * Tests that it is not possible to remove keys using the iterator.
      */
     @Test(expected = UnsupportedOperationException.class)
-    public void testUnmodifiableConfigurationIteratorRemove()
-            throws ConfigurationException
-    {
-        final ImmutableConfiguration conf =
-                ConfigurationUtils
-                        .unmodifiableConfiguration(createTestConfig());
+    public void testUnmodifiableConfigurationIteratorRemove() throws ConfigurationException {
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(createTestConfig());
         final Iterator<String> it = conf.getKeys();
         it.next();
         it.remove();
     }
 
     /**
-     * Tests whether an update of the original configuration is visible for the
-     * immutable view.
+     * Tests whether an update of the original configuration is visible for the immutable view.
      */
     @Test
-    public void testUnmodifiableConfigurationLiveUpdate()
-            throws ConfigurationException
-    {
+    public void testUnmodifiableConfigurationLiveUpdate() throws ConfigurationException {
         final Configuration confOrg = createTestConfig();
-        final ImmutableConfiguration conf =
-                ConfigurationUtils.unmodifiableConfiguration(confOrg);
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(confOrg);
         final String key = "new.property";
         final String value = "new value";
         confOrg.addProperty(key, value);
@@ -168,69 +154,38 @@ public class TestImmutableConfiguration
     }
 
     /**
-     * Tests that a cast to a mutable configuration is not possible.
+     * Tries to create an immutable configuration from a null object.
      */
-    @Test(expected = ClassCastException.class)
-    public void testUnmodifiableConfigurationCast()
-            throws ConfigurationException
-    {
-        final ImmutableConfiguration conf =
-                ConfigurationUtils
-                        .unmodifiableConfiguration(createTestConfig());
-        final Configuration mutableConf = (Configuration) conf;
-        mutableConf.clear();
+    @Test(expected = NullPointerException.class)
+    public void testUnmodifiableConfigurationNull() {
+        ConfigurationUtils.unmodifiableConfiguration(null);
     }
 
     /**
-     * Tests whether an immutable subset can be queried.
+     * Tests different access methods for properties.
      */
     @Test
-    public void testImmutableSubset() throws ConfigurationException
-    {
-        final ImmutableConfiguration conf =
-                ConfigurationUtils
-                        .unmodifiableConfiguration(createTestConfig());
-        final ImmutableConfiguration subset = conf.immutableSubset("test");
-        assertFalse("No content", subset.isEmpty());
-        assertEquals("Wrong value", 1000000, subset.getLong("long"));
+    public void testUnmodifiableConfigurationOtherTypes() throws ConfigurationException {
+        final ImmutableConfiguration conf = ConfigurationUtils.unmodifiableConfiguration(createTestConfig());
+        assertEquals("Wrong byte", (byte) 10, conf.getByte("test.byte"));
+        assertTrue("Wrong boolean", conf.getBoolean("test.boolean"));
+        assertEquals("Wrong double", 10.25, conf.getDouble("test.double"), .05);
+        assertEquals("Wrong float", 20.25f, conf.getFloat("test.float"), .05);
+        assertEquals("Wrong int", 10, conf.getInt("test.integer"));
+        assertEquals("Wrong long", 1000000L, conf.getLong("test.long"));
+        assertEquals("Wrong short", (short) 1, conf.getShort("test.short"));
     }
 
     /**
      * Tests whether an unmodifiable hierarchical configuration can be created.
      */
     @Test
-    public void testUnmodifiableHierarchicalConfiguration()
-    {
+    public void testUnmodifiableHierarchicalConfiguration() {
         final HierarchicalConfiguration<?> conf = new BaseHierarchicalConfiguration();
         final String key = "test";
         conf.addProperty(key, Boolean.TRUE);
-        final ImmutableHierarchicalConfiguration ihc =
-                ConfigurationUtils.unmodifiableConfiguration(conf);
+        final ImmutableHierarchicalConfiguration ihc = ConfigurationUtils.unmodifiableConfiguration(conf);
         assertTrue("Property not found", ihc.getBoolean(key));
         assertEquals("Wrong max index", 0, ihc.getMaxIndex(key));
-    }
-
-    /**
-     * Tests that exceptions thrown by the wrapped configuration are handled
-     * correctly.
-     */
-    @Test
-    public void testExceptionHandling()
-    {
-        final PropertiesConfiguration config = new PropertiesConfiguration();
-        final String property = "nonExistingProperty";
-        config.setThrowExceptionOnMissing(true);
-        final ImmutableConfiguration ic =
-                ConfigurationUtils.unmodifiableConfiguration(config);
-        try
-        {
-            ic.getString(property);
-            fail("Exception for missing property not thrown!");
-        }
-        catch (final NoSuchElementException e)
-        {
-            assertThat("Wrong message", e.getMessage(),
-                    containsString(property));
-        }
     }
 }

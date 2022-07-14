@@ -35,31 +35,14 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
-public class TestConfigurationPropertySource
-{
-
-    private static final String TEST_PROPERTY = "test.property";
-    private static final String TEST_VALUE = "testVALUE";
-
-    @Value("${" + TEST_PROPERTY + "}")
-    private String value;
-
-    @Test
-    public void testValueInjection()
-    {
-        Assert.assertEquals(TEST_VALUE, value);
-    }
+public class TestConfigurationPropertySource {
 
     @Configuration
-    static class Config
-    {
+    static class Config {
 
         @Bean
-        public PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer(
-                final ConfigurableEnvironment env)
-        {
-            final PropertySourcesPlaceholderConfigurer configurer =
-                    new PropertySourcesPlaceholderConfigurer();
+        public PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer(final ConfigurableEnvironment env) {
+            final PropertySourcesPlaceholderConfigurer configurer = new PropertySourcesPlaceholderConfigurer();
             // https://jira.spring.io/browse/SPR-9631 may simplify this in
             // future
             final MutablePropertySources sources = new MutablePropertySources();
@@ -69,14 +52,22 @@ public class TestConfigurationPropertySource
             return configurer;
         }
     }
+    private static final String TEST_PROPERTY = "test.property";
 
-    private static ConfigurationPropertySource createConfigPropertySource()
-    {
-        final PropertiesConfiguration propertiesConfiguration =
-                new PropertiesConfiguration();
+    private static final String TEST_VALUE = "testVALUE";
+
+    private static ConfigurationPropertySource createConfigPropertySource() {
+        final PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
         propertiesConfiguration.addProperty(TEST_PROPERTY, TEST_VALUE);
-        return new ConfigurationPropertySource("test configuration",
-                propertiesConfiguration);
+        return new ConfigurationPropertySource("test configuration", propertiesConfiguration);
+    }
+
+    @Value("${" + TEST_PROPERTY + "}")
+    private String value;
+
+    @Test
+    public void testValueInjection() {
+        Assert.assertEquals(TEST_VALUE, value);
     }
 
 }

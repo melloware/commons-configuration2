@@ -32,33 +32,13 @@ import org.junit.Test;
  * Tests the ConfigurationConverter class.
  *
  */
-public class TestConfigurationConverter
-{
-    @Test
-    public void testPropertiesToConfiguration()
-    {
-        final Properties props = new Properties();
-        props.setProperty("string", "teststring");
-        props.setProperty("int", "123");
-        props.setProperty("list", "item 1, item 2");
-
-        final AbstractConfiguration config =
-                (AbstractConfiguration) ConfigurationConverter.getConfiguration(props);
-        config.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
-
-        assertEquals("This returns 'teststring'", "teststring", config.getString("string"));
-        final List<Object> item1 = config.getList("list");
-        assertEquals("This returns 'item 1'", "item 1", item1.get(0));
-
-        assertEquals("This returns 123", 123, config.getInt("int"));
-    }
-
+public class TestConfigurationConverter {
     /**
      * Creates a configuration object with some test values.
+     *
      * @return the test configuration
      */
-    private static BaseConfiguration createTestConfiguration()
-    {
+    private static BaseConfiguration createTestConfiguration() {
         final BaseConfiguration config = new BaseConfiguration();
         config.addProperty("string", "teststring");
         config.addProperty("array", "item 1");
@@ -69,13 +49,22 @@ public class TestConfigurationConverter
         return config;
     }
 
+    @Test
+    public void testConfigurationToMap() {
+        final Configuration config = new BaseConfiguration();
+        config.addProperty("string", "teststring");
+
+        final Map<Object, Object> map = ConfigurationConverter.getMap(config);
+
+        assertNotNull("null map", map);
+        assertEquals("'string' property", "teststring", map.get("string"));
+    }
+
     /**
-     * Tests a conversion to Properties if the default list delimiter handler
-     * is used (which does not support list joining).
+     * Tests a conversion to Properties if the default list delimiter handler is used (which does not support list joining).
      */
     @Test
-    public void testConfigurationToPropertiesDefaultListHandling()
-    {
+    public void testConfigurationToPropertiesDefaultListHandling() {
         final BaseConfiguration config = createTestConfiguration();
         final Properties props = ConfigurationConverter.getProperties(config);
 
@@ -87,12 +76,10 @@ public class TestConfigurationConverter
     }
 
     /**
-     * Tests a conversion to Properties if the list delimiter handler supports
-     * list joining.
+     * Tests a conversion to Properties if the list delimiter handler supports list joining.
      */
     @Test
-    public void testConfigurationToPropertiesListDelimiterHandler()
-    {
+    public void testConfigurationToPropertiesListDelimiterHandler() {
         final BaseConfiguration config = createTestConfiguration();
         config.setListDelimiterHandler(new DefaultListDelimiterHandler(';'));
         final Properties props = ConfigurationConverter.getProperties(config);
@@ -100,13 +87,11 @@ public class TestConfigurationConverter
     }
 
     /**
-     * Tests a conversion to Properties if the source configuration does not
-     * extend AbstractConfiguration. In this case, properties with multiple
-     * values have to be handled in a special way.
+     * Tests a conversion to Properties if the source configuration does not extend AbstractConfiguration. In this case,
+     * properties with multiple values have to be handled in a special way.
      */
     @Test
-    public void testConfigurationToPropertiesNoAbstractConfiguration()
-    {
+    public void testConfigurationToPropertiesNoAbstractConfiguration() {
         final Configuration src = EasyMock.createMock(Configuration.class);
         final BaseConfiguration config = createTestConfiguration();
         EasyMock.expect(src.getKeys()).andReturn(config.getKeys());
@@ -117,33 +102,36 @@ public class TestConfigurationConverter
         }).anyTimes();
         EasyMock.replay(src);
         final Properties props = ConfigurationConverter.getProperties(src);
-        assertEquals("'array' property", "item 1,item 2",
-                props.getProperty("array"));
+        assertEquals("'array' property", "item 1,item 2", props.getProperty("array"));
     }
 
     /**
-     * Tests the conversion of a configuration object to properties if scalar
-     * values are involved. This test is related to CONFIGURATION-432.
+     * Tests the conversion of a configuration object to properties if scalar values are involved. This test is related to
+     * CONFIGURATION-432.
      */
     @Test
-    public void testConfigurationToPropertiesScalarValue()
-    {
+    public void testConfigurationToPropertiesScalarValue() {
         final BaseConfiguration config = new BaseConfiguration();
-        config.addProperty("scalar", new Integer(42));
+        config.addProperty("scalar", Integer.valueOf(42));
         final Properties props = ConfigurationConverter.getProperties(config);
         assertEquals("Wrong value", "42", props.getProperty("scalar"));
     }
 
     @Test
-    public void testConfigurationToMap()
-    {
-        final Configuration config = new BaseConfiguration();
-        config.addProperty("string", "teststring");
+    public void testPropertiesToConfiguration() {
+        final Properties props = new Properties();
+        props.setProperty("string", "teststring");
+        props.setProperty("int", "123");
+        props.setProperty("list", "item 1, item 2");
 
-        final Map<Object, Object> map = ConfigurationConverter.getMap(config);
+        final AbstractConfiguration config = (AbstractConfiguration) ConfigurationConverter.getConfiguration(props);
+        config.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
 
-        assertNotNull("null map", map);
-        assertEquals("'string' property", "teststring", map.get("string"));
+        assertEquals("This returns 'teststring'", "teststring", config.getString("string"));
+        final List<Object> item1 = config.getList("list");
+        assertEquals("This returns 'item 1'", "item 1", item1.get(0));
+
+        assertEquals("This returns 123", 123, config.getInt("int"));
     }
 
 }

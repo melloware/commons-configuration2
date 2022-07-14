@@ -31,8 +31,7 @@ import org.junit.Test;
  * Test class for {@code TrackedNodeModel}.
  *
  */
-public class TestTrackedNodeModel
-{
+public class TestTrackedNodeModel {
     /** Constant for a test key. */
     private static final String KEY = "aTestKey";
 
@@ -42,31 +41,36 @@ public class TestTrackedNodeModel
     /** A mock resolver. */
     private static NodeKeyResolver<ImmutableNode> resolver;
 
+    @BeforeClass
+    public static void setUpBeforeClass() throws Exception {
+        selector = new NodeSelector("someKey");
+        final NodeKeyResolver<ImmutableNode> resolverMock = EasyMock.createMock(NodeKeyResolver.class);
+        EasyMock.replay(resolverMock);
+        resolver = resolverMock;
+    }
+
     /** A mock for the underlying node model. */
     private InMemoryNodeModel parentModel;
 
     /** A mock for the support object that provides the model. */
     private InMemoryNodeModelSupport modelSupport;
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception
-    {
-        selector = new NodeSelector("someKey");
-        @SuppressWarnings("unchecked")
-        final
-        NodeKeyResolver<ImmutableNode> resolverMock =
-                EasyMock.createMock(NodeKeyResolver.class);
-        EasyMock.replay(resolverMock);
-        resolver = resolverMock;
+    /**
+     * Creates a mock for a node handler and prepares the parent model to expect a request for the tracked node handler.
+     *
+     * @return the mock for the node handler
+     */
+    private NodeHandler<ImmutableNode> expectGetNodeHandler() {
+        final NodeHandler<ImmutableNode> handler = EasyMock.createMock(NodeHandler.class);
+        EasyMock.expect(parentModel.getTrackedNodeHandler(selector)).andReturn(handler);
+        return handler;
     }
 
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         parentModel = EasyMock.createMock(InMemoryNodeModel.class);
         modelSupport = EasyMock.createMock(InMemoryNodeModelSupport.class);
-        EasyMock.expect(modelSupport.getNodeModel()).andReturn(parentModel)
-                .anyTimes();
+        EasyMock.expect(modelSupport.getNodeModel()).andReturn(parentModel).anyTimes();
         EasyMock.replay(modelSupport);
     }
 
@@ -75,71 +79,20 @@ public class TestTrackedNodeModel
      *
      * @return the test model
      */
-    private TrackedNodeModel setUpModel()
-    {
+    private TrackedNodeModel setUpModel() {
         return new TrackedNodeModel(modelSupport, selector, true);
     }
 
     /**
-     * Tries to create an instance without a selector.
-     */
-    @Test(expected = IllegalArgumentException.class)
-    public void testInitNoSelector()
-    {
-        new TrackedNodeModel(modelSupport, null, true);
-    }
-
-    /**
-     * Tries to create an instance without a parent model.
-     */
-    @Test(expected = IllegalArgumentException.class)
-    public void testInitNoParentModel()
-    {
-        new TrackedNodeModel(null, selector, true);
-    }
-
-    /**
-     * Tests whether the root node can be changed.
+     * Tests whether nodes can be added.
      */
     @Test
-    public void testSetRootNode()
-    {
-        final ImmutableNode root = NodeStructureHelper.createNode("root", null);
-        parentModel.replaceTrackedNode(selector, root);
+    public void testAddNodes() {
+        final List<ImmutableNode> nodes = Arrays.asList(NodeStructureHelper.createNode("n1", 1), NodeStructureHelper.createNode("n2", 2));
+        parentModel.addNodes(KEY, selector, nodes, resolver);
         EasyMock.replay(parentModel);
 
-        final TrackedNodeModel model = setUpModel();
-        model.setRootNode(root);
-        EasyMock.verify(parentModel);
-    }
-
-    /**
-     * Creates a mock for a node handler and prepares the parent model to expect
-     * a request for the tracked node handler.
-     *
-     * @return the mock for the node handler
-     */
-    private NodeHandler<ImmutableNode> expectGetNodeHandler()
-    {
-        @SuppressWarnings("unchecked")
-        final
-        NodeHandler<ImmutableNode> handler =
-                EasyMock.createMock(NodeHandler.class);
-        EasyMock.expect(parentModel.getTrackedNodeHandler(selector)).andReturn(
-                handler);
-        return handler;
-    }
-
-    /**
-     * Tests whether a node handler can be queried.
-     */
-    @Test
-    public void testGetNodeHandler()
-    {
-        final NodeHandler<ImmutableNode> handler = expectGetNodeHandler();
-        EasyMock.replay(handler, parentModel);
-
-        assertSame("Wrong node handler", handler, setUpModel().getNodeHandler());
+        setUpModel().addNodes(KEY, nodes, resolver);
         EasyMock.verify(parentModel);
     }
 
@@ -147,8 +100,7 @@ public class TestTrackedNodeModel
      * Tests whether properties can be added.
      */
     @Test
-    public void testAddProperty()
-    {
+    public void testAddProperty() {
         final Iterable<?> values = EasyMock.createMock(Iterable.class);
         parentModel.addProperty(KEY, selector, values, resolver);
         EasyMock.replay(values, parentModel);
@@ -158,52 +110,14 @@ public class TestTrackedNodeModel
     }
 
     /**
-     * Tests whether nodes can be added.
+     * Tests whether the whole model can be cleared.
      */
     @Test
-    public void testAddNodes()
-    {
-        final List<ImmutableNode> nodes =
-                Arrays.asList(NodeStructureHelper.createNode("n1", 1),
-                        NodeStructureHelper.createNode("n2", 2));
-        parentModel.addNodes(KEY, selector, nodes, resolver);
+    public void testClear() {
+        EasyMock.expect(parentModel.clearTree(null, selector, resolver)).andReturn(null);
         EasyMock.replay(parentModel);
 
-        setUpModel().addNodes(KEY, nodes, resolver);
-        EasyMock.verify(parentModel);
-    }
-
-    /**
-     * Tests whether a property can be set.
-     */
-    @Test
-    public void testSetProperty()
-    {
-        final Object value = 42;
-        parentModel.setProperty(KEY, selector, value, resolver);
-        EasyMock.replay(parentModel);
-
-        setUpModel().setProperty(KEY, value, resolver);
-        EasyMock.verify(parentModel);
-    }
-
-    /**
-     * Tests whether a sub tree can be cleared.
-     */
-    @Test
-    public void testClearTree()
-    {
-        final QueryResult<ImmutableNode> result =
-                QueryResult.createNodeResult(NodeStructureHelper.createNode(
-                        "test", null));
-        final List<QueryResult<ImmutableNode>> removed =
-                Collections.singletonList(result);
-        EasyMock.expect(parentModel.clearTree(KEY, selector, resolver))
-                .andReturn(removed);
-        EasyMock.replay(parentModel);
-
-        assertSame("Wrong removed elements", removed,
-                setUpModel().clearTree(KEY, resolver));
+        setUpModel().clear(resolver);
         EasyMock.verify(parentModel);
     }
 
@@ -211,8 +125,7 @@ public class TestTrackedNodeModel
      * Tests whether a property can be cleared.
      */
     @Test
-    public void testClearProperty()
-    {
+    public void testClearProperty() {
         parentModel.clearProperty(KEY, selector, resolver);
         EasyMock.replay(parentModel);
 
@@ -221,16 +134,16 @@ public class TestTrackedNodeModel
     }
 
     /**
-     * Tests whether the whole model can be cleared.
+     * Tests whether a sub tree can be cleared.
      */
     @Test
-    public void testClear()
-    {
-        EasyMock.expect(parentModel.clearTree(null, selector, resolver))
-                .andReturn(null);
+    public void testClearTree() {
+        final QueryResult<ImmutableNode> result = QueryResult.createNodeResult(NodeStructureHelper.createNode("test", null));
+        final List<QueryResult<ImmutableNode>> removed = Collections.singletonList(result);
+        EasyMock.expect(parentModel.clearTree(KEY, selector, resolver)).andReturn(removed);
         EasyMock.replay(parentModel);
 
-        setUpModel().clear(resolver);
+        assertSame("Wrong removed elements", removed, setUpModel().clearTree(KEY, resolver));
         EasyMock.verify(parentModel);
     }
 
@@ -238,8 +151,7 @@ public class TestTrackedNodeModel
      * Tests whether the model can be closed.
      */
     @Test
-    public void testClose()
-    {
+    public void testClose() {
         parentModel.untrackNode(selector);
         EasyMock.replay(parentModel);
 
@@ -251,8 +163,7 @@ public class TestTrackedNodeModel
      * Tests whether close can be called multiple times.
      */
     @Test
-    public void testCloseMultipleTimes()
-    {
+    public void testCloseMultipleTimes() {
         parentModel.untrackNode(selector);
         EasyMock.replay(parentModel);
 
@@ -266,8 +177,7 @@ public class TestTrackedNodeModel
      * Tests whether the correct in-memory representation can be queried.
      */
     @Test
-    public void testGetInMemoryRepresentation()
-    {
+    public void testGetInMemoryRepresentation() {
         final NodeHandler<ImmutableNode> handler = expectGetNodeHandler();
         final ImmutableNode root = NodeStructureHelper.createNode("Root", null);
         EasyMock.expect(handler.getRootNode()).andReturn(root);
@@ -275,5 +185,60 @@ public class TestTrackedNodeModel
 
         final TrackedNodeModel model = setUpModel();
         assertSame("Wrong root node", root, model.getInMemoryRepresentation());
+    }
+
+    /**
+     * Tests whether a node handler can be queried.
+     */
+    @Test
+    public void testGetNodeHandler() {
+        final NodeHandler<ImmutableNode> handler = expectGetNodeHandler();
+        EasyMock.replay(handler, parentModel);
+
+        assertSame("Wrong node handler", handler, setUpModel().getNodeHandler());
+        EasyMock.verify(parentModel);
+    }
+
+    /**
+     * Tries to create an instance without a parent model.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitNoParentModel() {
+        new TrackedNodeModel(null, selector, true);
+    }
+
+    /**
+     * Tries to create an instance without a selector.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testInitNoSelector() {
+        new TrackedNodeModel(modelSupport, null, true);
+    }
+
+    /**
+     * Tests whether a property can be set.
+     */
+    @Test
+    public void testSetProperty() {
+        final Object value = 42;
+        parentModel.setProperty(KEY, selector, value, resolver);
+        EasyMock.replay(parentModel);
+
+        setUpModel().setProperty(KEY, value, resolver);
+        EasyMock.verify(parentModel);
+    }
+
+    /**
+     * Tests whether the root node can be changed.
+     */
+    @Test
+    public void testSetRootNode() {
+        final ImmutableNode root = NodeStructureHelper.createNode("root", null);
+        parentModel.replaceTrackedNode(selector, root);
+        EasyMock.replay(parentModel);
+
+        final TrackedNodeModel model = setUpModel();
+        model.setRootNode(root);
+        EasyMock.verify(parentModel);
     }
 }

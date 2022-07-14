@@ -32,8 +32,7 @@ import org.junit.Test;
  * Test class for CatalogResolver.
  *
  */
-public class TestCatalogResolver
-{
+public class TestCatalogResolver {
     private static final String CATALOG_FILES = "catalog.xml";
     private static final String PUBLIC_FILE = "testResolver.xml";
     private static final String REWRITE_SYSTEM_FILE = "test.properties.xml";
@@ -42,9 +41,19 @@ public class TestCatalogResolver
     private CatalogResolver resolver;
     private XMLConfiguration config;
 
+    /**
+     * Loads the test configuration from the specified file.
+     *
+     * @param fileName the file name
+     * @throws ConfigurationException if an error occurs
+     */
+    private void load(final String fileName) throws ConfigurationException {
+        final FileHandler handler = new FileHandler(config);
+        handler.load(fileName);
+    }
+
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         resolver = new CatalogResolver();
         resolver.setCatalogFiles(CATALOG_FILES);
         // resolver.setDebug(true);
@@ -53,62 +62,44 @@ public class TestCatalogResolver
     }
 
     @After
-    public void tearDown() throws Exception
-    {
+    public void tearDown() throws Exception {
         resolver = null;
         config = null;
     }
 
-    /**
-     * Loads the test configuration from the specified file.
-     *
-     * @param fileName the file name
-     * @throws ConfigurationException if an error occurs
-     */
-    private void load(final String fileName) throws ConfigurationException
-    {
-        final FileHandler handler = new FileHandler(config);
-        handler.load(fileName);
-    }
-
     @Test
-    public void testPublic() throws ConfigurationException
-    {
-        load(PUBLIC_FILE);
-    }
-
-    @Test
-    public void testRewriteSystem() throws ConfigurationException
-    {
-        load(REWRITE_SYSTEM_FILE);
-    }
-
-    /**
-     * Tests that the schema can be resolved and that XMLConfiguration will
-     * validate the file using the schema.
-     * @throws Exception
-     */
-    @Test
-    public void testSchemaResolver() throws ConfigurationException
-    {
-        load(REWRITE_SCHEMA_FILE);
-    }
-
-    @Test
-    public void testDebug() throws Exception
-    {
+    public void testDebug() throws Exception {
         resolver.setDebug(true);
         // There is no really good way to check this except to do something
         // that causes debug output.
     }
 
     @Test
-    public void testLogger() throws Exception
-    {
+    public void testLogger() throws Exception {
         final ConfigurationLogger log = new ConfigurationLogger(this.getClass());
         resolver.setLogger(log);
         assertNotNull("No Logger returned", resolver.getLogger());
         assertSame("Incorrect Logger", log, resolver.getLogger());
+    }
+
+    @Test
+    public void testPublic() throws ConfigurationException {
+        load(PUBLIC_FILE);
+    }
+
+    @Test
+    public void testRewriteSystem() throws ConfigurationException {
+        load(REWRITE_SYSTEM_FILE);
+    }
+
+    /**
+     * Tests that the schema can be resolved and that XMLConfiguration will validate the file using the schema.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testSchemaResolver() throws ConfigurationException {
+        load(REWRITE_SCHEMA_FILE);
     }
 
 }

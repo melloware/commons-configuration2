@@ -27,47 +27,40 @@ import org.junit.Test;
  * Test case for the ManagedReloadingDetector class.
  *
  */
-public class TestManagedReloadingDetector
-{
+public class TestManagedReloadingDetector {
     /** The instance to be tested. */
     private ManagedReloadingDetector strategy;
 
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         strategy = new ManagedReloadingDetector();
-    }
-
-    /**
-     * Tests the result of isReloadingRequired() for a newly created instance.
-     */
-    @Test
-    public void testReloadingRequiredInitial()
-    {
-        assertFalse("Wrong result", strategy.isReloadingRequired());
     }
 
     /**
      * Tests the refresh() method.
      */
     @Test
-    public void testRefresh()
-    {
+    public void testRefresh() {
         strategy.refresh();
-        assertTrue("Reloading request not detected",
-                strategy.isReloadingRequired());
-        assertTrue("Reloading state not permanent",
-                strategy.isReloadingRequired());
+        assertTrue("Reloading request not detected", strategy.isReloadingRequired());
+        assertTrue("Reloading state not permanent", strategy.isReloadingRequired());
     }
 
     /**
      * Tests whether the reloading state can be reset again.
      */
     @Test
-    public void testReloadingPerformed()
-    {
+    public void testReloadingPerformed() {
         strategy.refresh();
         strategy.reloadingPerformed();
         assertFalse("Reloading state not reset", strategy.isReloadingRequired());
+    }
+
+    /**
+     * Tests the result of isReloadingRequired() for a newly created instance.
+     */
+    @Test
+    public void testReloadingRequiredInitial() {
+        assertFalse("Wrong result", strategy.isReloadingRequired());
     }
 }

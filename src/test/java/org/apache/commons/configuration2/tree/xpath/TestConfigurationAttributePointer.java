@@ -38,8 +38,7 @@ import org.junit.Test;
  * Test class for {@code ConfigurationAttributePointer}.
  *
  */
-public class TestConfigurationAttributePointer
-{
+public class TestConfigurationAttributePointer {
     /** Constant for the name of the test attribute. */
     private static final String ATTR_NAME = "myAttr";
 
@@ -53,60 +52,56 @@ public class TestConfigurationAttributePointer
     private ConfigurationAttributePointer<ImmutableNode> pointer;
 
     @Before
-    public void setUp() throws Exception
-    {
+    public void setUp() throws Exception {
         final ImmutableNode.Builder ndBuilder = new ImmutableNode.Builder();
         ndBuilder.name("parent").addAttribute(ATTR_NAME, ATTR_VALUE);
         final ImmutableNode nd = ndBuilder.create();
-        parent =
-                new ConfigurationNodePointer<>(nd, Locale.ENGLISH,
-                        new InMemoryNodeModel(nd).getNodeHandler());
-        pointer =
-                new ConfigurationAttributePointer<>(parent,
-                        ATTR_NAME);
+        parent = new ConfigurationNodePointer<>(nd, Locale.ENGLISH, new InMemoryNodeModel(nd).getNodeHandler());
+        pointer = new ConfigurationAttributePointer<>(parent, ATTR_NAME);
     }
 
     /**
-     * Tests whether the correct pointer is returned.
+     * Tests querying an iterator for attributes. Result should be null.
      */
     @Test
-    public void testGetParentPointer()
-    {
-        assertSame("Wrong parent pointer", parent, pointer.getParentPointer());
+    public void testAttributeIterator() {
+        assertNull("Returned an attribute iterator", pointer.attributeIterator(new QName(null, "test")));
+    }
+
+    /**
+     * Tests querying an iterator for children. Result should be null.
+     */
+    @Test
+    public void testChildIterator() {
+        assertNull("Returned an iterator for children", pointer.childIterator(null, false, null));
     }
 
     /**
      * Tests querying the base value.
      */
     @Test
-    public void testGetBaseValue()
-    {
+    public void testGetBaseValue() {
         assertEquals("Wrong base value", ATTR_VALUE, pointer.getBaseValue());
     }
 
     /**
-     * Tests querying the immediate node. Here a proxy for an attribute node
-     * should be returned.
+     * Tests querying the immediate node. Here a proxy for an attribute node should be returned.
      */
     @Test
-    public void testGetImmediateNode()
-    {
+    public void testGetImmediateNode() {
         final Object node = pointer.getImmediateNode();
         assertTrue("Wrong node class", node instanceof QueryResult);
         final QueryResult<?> proxy = (QueryResult<?>) node;
         assertTrue("No attribute result", proxy.isAttributeResult());
-        assertEquals("Wrong parent node", parent.getConfigurationNode(),
-                proxy.getNode());
-        assertEquals("Wrong attribute name", ATTR_NAME,
-                proxy.getAttributeName());
+        assertEquals("Wrong parent node", parent.getConfigurationNode(), proxy.getNode());
+        assertEquals("Wrong attribute name", ATTR_NAME, proxy.getAttributeName());
     }
 
     /**
      * Tests the length.
      */
     @Test
-    public void testGetLength()
-    {
+    public void testGetLength() {
         assertEquals("Wrong length", 1, pointer.getLength());
     }
 
@@ -114,19 +109,41 @@ public class TestConfigurationAttributePointer
      * Tests querying the node name.
      */
     @Test
-    public void testGetName()
-    {
+    public void testGetName() {
         final QName name = pointer.getName();
         assertEquals("Wrong name", ATTR_NAME, name.getName());
         assertNull("Prefix not null", name.getPrefix());
     }
 
     /**
+     * Tests whether the correct pointer is returned.
+     */
+    @Test
+    public void testGetParentPointer() {
+        assertSame("Wrong parent pointer", parent, pointer.getParentPointer());
+    }
+
+    /**
+     * Tests querying the attribute's value.
+     */
+    @Test
+    public void testGetValue() {
+        assertEquals("Wrong value", ATTR_VALUE, pointer.getValue());
+    }
+
+    /**
+     * Tests the attribute flag.
+     */
+    @Test
+    public void testIsAttribute() {
+        assertTrue("Not an attribute", pointer.isAttribute());
+    }
+
+    /**
      * Tests the collection flag.
      */
     @Test
-    public void testIsCollection()
-    {
+    public void testIsCollection() {
         assertFalse("Wrong collection flag", pointer.isCollection());
     }
 
@@ -134,64 +151,23 @@ public class TestConfigurationAttributePointer
      * Tests the leaf flag.
      */
     @Test
-    public void testIsLeaf()
-    {
+    public void testIsLeaf() {
         assertTrue("Wrong leaf flag", pointer.isLeaf());
-    }
-
-    /**
-     * Tests the attribute flag.
-     */
-    @Test
-    public void testIsAttribute()
-    {
-        assertTrue("Not an attribute", pointer.isAttribute());
-    }
-
-    /**
-     * Tests querying the attribute's value.
-     */
-    @Test
-    public void testGetValue()
-    {
-        assertEquals("Wrong value", ATTR_VALUE, pointer.getValue());
     }
 
     /**
      * Tries to set a new value.
      */
     @Test(expected = UnsupportedOperationException.class)
-    public void testSetValue()
-    {
+    public void testSetValue() {
         pointer.setValue("newValue");
-    }
-
-    /**
-     * Tests querying an iterator for attributes. Result should be null.
-     */
-    @Test
-    public void testAttributeIterator()
-    {
-        assertNull("Returned an attribute iterator", pointer
-                .attributeIterator(new QName(null, "test")));
-    }
-
-    /**
-     * Tests querying an iterator for children. Result should be null.
-     */
-    @Test
-    public void testChildIterator()
-    {
-        assertNull("Returned an iterator for children", pointer.childIterator(
-                null, false, null));
     }
 
     /**
      * Tests the testNode() method.
      */
     @Test
-    public void testTestNode()
-    {
+    public void testTestNode() {
         NodeTest test = new NodeTypeTest(Compiler.NODE_TYPE_TEXT);
         assertTrue("No a text node", pointer.testNode(test));
         test = new NodeTypeTest(Compiler.NODE_TYPE_COMMENT);
