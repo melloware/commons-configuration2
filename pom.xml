@@ -20,12 +20,20 @@
     <groupId>com.melloware</groupId>
     <artifactId>commons-configuration2</artifactId>
     <version>2.10.1</version>
-    <name>Apache Commons Configuration</name>
+    <name>Apache Commons Configuration2</name>
     <description>
   Tools to assist in the reading of configuration/preferences files in various formats; requires Java 8.
   </description>
     <url>https://commons.apache.org/proper/commons-configuration/</url>
     <inceptionYear>2001</inceptionYear>
+    <licenses>
+        <license>
+            <name>Apache 2</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>A business-friendly OSS license</comments>
+        </license>
+    </licenses>
     <developers>
         <developer>
             <name>Daniel Rall</name>
@@ -241,10 +249,16 @@
         <url>https://github.com/apache/commons-configuration/actions</url>
     </ciManagement>
     <distributionManagement>
-        <site>
-            <id>apache.website</id>
-            <url>scm:svn:https://svn.apache.org/repos/infra/websites/production/commons/content/proper/commons-configuration/</url>
-        </site>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <name>Sonatype Nexus Snapshots</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <name>Sonatype Nexus Releases</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
     </distributionManagement>
     <properties>
         <commons.componentid>configuration</commons.componentid>
@@ -522,6 +536,16 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <id>ossrh</id>
+            <name>Sonatype Nexus Snapshots</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <build>
         <defaultGoal>clean verify apache-rat:check japicmp:cmp checkstyle:check spotbugs:check pmd:check pmd:cpd-check javadoc:javadoc</defaultGoal>
         <testResources>
