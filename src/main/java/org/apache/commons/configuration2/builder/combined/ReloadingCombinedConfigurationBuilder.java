@@ -21,7 +21,6 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import org.apache.commons.configuration2.CombinedConfiguration;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.HierarchicalConfiguration;
 import org.apache.commons.configuration2.XMLConfiguration;
 import org.apache.commons.configuration2.builder.BuilderParameters;
@@ -54,6 +53,19 @@ import org.apache.commons.configuration2.reloading.ReloadingControllerSupport;
  * @since 2.0
  */
 public class ReloadingCombinedConfigurationBuilder extends CombinedConfigurationBuilder implements ReloadingControllerSupport {
+    /**
+     * Checks whether the passed in builder object supports reloading. If yes, its reloading controller is obtained and
+     * added to the given list.
+     *
+     * @param subControllers the list with sub controllers
+     * @param builder the builder object to be checked
+     */
+    public static void obtainReloadingController(final Collection<ReloadingController> subControllers, final Object builder) {
+        if (builder instanceof ReloadingControllerSupport) {
+            subControllers.add(((ReloadingControllerSupport) builder).getReloadingController());
+        }
+    }
+
     /** The reloading controller used by this builder. */
     private ReloadingController reloadingController;
 
@@ -61,6 +73,16 @@ public class ReloadingCombinedConfigurationBuilder extends CombinedConfiguration
      * Creates a new instance of {@code ReloadingCombinedConfigurationBuilder}. No parameters are set.
      */
     public ReloadingCombinedConfigurationBuilder() {
+    }
+
+    /**
+     * Creates a new instance of {@code ReloadingCombinedConfigurationBuilder} and sets the specified initialization
+     * parameters.
+     *
+     * @param params a map with initialization parameters
+     */
+    public ReloadingCombinedConfigurationBuilder(final Map<String, Object> params) {
+        super(params);
     }
 
     /**
@@ -75,66 +97,12 @@ public class ReloadingCombinedConfigurationBuilder extends CombinedConfiguration
     }
 
     /**
-     * Creates a new instance of {@code ReloadingCombinedConfigurationBuilder} and sets the specified initialization
-     * parameters.
-     *
-     * @param params a map with initialization parameters
-     */
-    public ReloadingCombinedConfigurationBuilder(final Map<String, Object> params) {
-        super(params);
-    }
-
-    /**
      * {@inheritDoc} This method is overridden to adapt the return type.
      */
     @Override
     public ReloadingCombinedConfigurationBuilder configure(final BuilderParameters... params) {
         super.configure(params);
         return this;
-    }
-
-    /**
-     * {@inheritDoc} This implementation returns a {@link CombinedReloadingController} which contains sub controllers for
-     * all child configuration sources with reloading support. If the definition builder supports reloading, its controller
-     * is contained, too. Note that the combined reloading controller is initialized when the result configuration is
-     * created (i.e. when calling {@code getConfiguration()} for the first time). So this method does not return a
-     * meaningful result before.
-     */
-    @Override
-    public synchronized ReloadingController getReloadingController() {
-        return reloadingController;
-    }
-
-    /**
-     * {@inheritDoc} This implementation makes sure that the reloading state of the managed reloading controller is reset.
-     * Note that this has to be done here and not in {@link #initResultInstance(CombinedConfiguration)} because it must be
-     * outside of a synchronized block; otherwise, a dead-lock situation can occur.
-     */
-    @Override
-    public CombinedConfiguration getConfiguration() throws ConfigurationException {
-        final CombinedConfiguration result = super.getConfiguration();
-        reloadingController.resetReloadingState();
-        return result;
-    }
-
-    /**
-     * {@inheritDoc} This implementation creates a builder for XML configurations with reloading support.
-     */
-    @Override
-    protected ConfigurationBuilder<? extends HierarchicalConfiguration<?>> createXMLDefinitionBuilder(final BuilderParameters builderParams) {
-        return new ReloadingFileBasedConfigurationBuilder<>(XMLConfiguration.class).configure(builderParams);
-    }
-
-    /**
-     * {@inheritDoc} This implementation first calls the super method to actually initialize the result configuration. Then
-     * it creates the {@link CombinedReloadingController} for all child configuration sources with reloading support.
-     */
-    @Override
-    protected void initResultInstance(final CombinedConfiguration result) throws ConfigurationException {
-        super.initResultInstance(result);
-        if (reloadingController == null) {
-            reloadingController = createReloadingController();
-        }
     }
 
     /**
@@ -150,9 +118,7 @@ public class ReloadingCombinedConfigurationBuilder extends CombinedConfiguration
         final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder = getDefinitionBuilder();
         obtainReloadingController(subControllers, defBuilder);
 
-        for (final ConfigurationBuilder<? extends Configuration> b : getChildBuilders()) {
-            obtainReloadingController(subControllers, b);
-        }
+        getChildBuilders().forEach(b -> obtainReloadingController(subControllers, b));
 
         final CombinedReloadingController ctrl = new CombinedReloadingController(subControllers);
         ctrl.resetInitialReloadingState();
@@ -160,15 +126,46 @@ public class ReloadingCombinedConfigurationBuilder extends CombinedConfiguration
     }
 
     /**
-     * Checks whether the passed in builder object supports reloading. If yes, its reloading controller is obtained and
-     * added to the given list.
-     *
-     * @param subControllers the list with sub controllers
-     * @param builder the builder object to be checked
+     * {@inheritDoc} This implementation creates a builder for XML configurations with reloading support.
      */
-    public static void obtainReloadingController(final Collection<ReloadingController> subControllers, final Object builder) {
-        if (builder instanceof ReloadingControllerSupport) {
-            subControllers.add(((ReloadingControllerSupport) builder).getReloadingController());
+    @Override
+    protected ConfigurationBuilder<? extends HierarchicalConfiguration<?>> createXMLDefinitionBuilder(final BuilderParameters builderParams) {
+        return new ReloadingFileBasedConfigurationBuilder<>(XMLConfiguration.class).configure(builderParams);
+    }
+
+    /**
+     * {@inheritDoc} This implementation makes sure that the reloading state of the managed reloading controller is reset.
+     * Note that this has to be done here and not in {@link #initResultInstance(CombinedConfiguration)} because it must be
+     * outside of a synchronized block; otherwise, a dead-lock situation can occur.
+     */
+    @Override
+    public CombinedConfiguration getConfiguration() throws ConfigurationException {
+        final CombinedConfiguration result = super.getConfiguration();
+        reloadingController.resetReloadingState();
+        return result;
+    }
+
+    /**
+     * {@inheritDoc} This implementation returns a {@link CombinedReloadingController} which contains sub controllers for
+     * all child configuration sources with reloading support. If the definition builder supports reloading, its controller
+     * is contained, too. Note that the combined reloading controller is initialized when the result configuration is
+     * created (i.e. when calling {@code getConfiguration()} for the first time). So this method does not return a
+     * meaningful result before.
+     */
+    @Override
+    public synchronized ReloadingController getReloadingController() {
+        return reloadingController;
+    }
+
+    /**
+     * {@inheritDoc} This implementation first calls the super method to actually initialize the result configuration. Then
+     * it creates the {@link CombinedReloadingController} for all child configuration sources with reloading support.
+     */
+    @Override
+    protected void initResultInstance(final CombinedConfiguration result) throws ConfigurationException {
+        super.initResultInstance(result);
+        if (reloadingController == null) {
+            reloadingController = createReloadingController();
         }
     }
 }

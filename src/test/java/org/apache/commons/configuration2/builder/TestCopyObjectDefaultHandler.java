@@ -16,18 +16,18 @@
  */
 package org.apache.commons.configuration2.builder;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.util.Map;
 
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.configuration2.tree.ExpressionEngine;
-import org.easymock.EasyMock;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code CopyObjectDefaultHandler}.
- *
  */
 public class TestCopyObjectDefaultHandler {
     /**
@@ -37,19 +37,19 @@ public class TestCopyObjectDefaultHandler {
     public void testInitializeDefaultsBaseType() {
         final Long refresh = 50000L;
         final XMLBuilderParametersImpl paramsXml = new XMLBuilderParametersImpl();
-        paramsXml.setValidating(true).setExpressionEngine(EasyMock.createMock(ExpressionEngine.class)).setReloadingRefreshDelay(refresh);
+        paramsXml.setValidating(true).setExpressionEngine(mock(ExpressionEngine.class)).setReloadingRefreshDelay(refresh);
         final CopyObjectDefaultHandler handler = new CopyObjectDefaultHandler(paramsXml);
         final FileBasedBuilderParametersImpl paramsFb = new FileBasedBuilderParametersImpl();
         handler.initializeDefaults(paramsFb);
-        assertEquals("Wrong refresh", refresh, paramsFb.getReloadingRefreshDelay());
+        assertEquals(refresh, paramsFb.getReloadingRefreshDelay());
     }
 
     /**
      * Tests whether exceptions during copying are re-thrown as runtime exceptions.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testInitializeDefaultsException() {
-        final ExpressionEngine engine = EasyMock.createMock(ExpressionEngine.class);
+        final ExpressionEngine engine = mock(ExpressionEngine.class);
         final XMLBuilderParametersImpl source = new XMLBuilderParametersImpl();
         source.setExpressionEngine(engine);
         final XMLBuilderParametersImpl dest = new XMLBuilderParametersImpl() {
@@ -60,7 +60,7 @@ public class TestCopyObjectDefaultHandler {
         };
 
         final CopyObjectDefaultHandler handler = new CopyObjectDefaultHandler(source);
-        handler.initializeDefaults(dest);
+        assertThrows(ConfigurationRuntimeException.class, () -> handler.initializeDefaults(dest));
     }
 
     /**
@@ -75,15 +75,15 @@ public class TestCopyObjectDefaultHandler {
         final FileBasedBuilderParametersImpl copy = new FileBasedBuilderParametersImpl();
         handler.initializeDefaults(copy);
         final Map<String, Object> map = copy.getParameters();
-        assertEquals("Wrong exception flag", Boolean.TRUE, map.get("throwExceptionOnMissing"));
-        assertEquals("Wrong refresh", refresh, copy.getReloadingRefreshDelay());
+        assertEquals(Boolean.TRUE, map.get("throwExceptionOnMissing"));
+        assertEquals(refresh, copy.getReloadingRefreshDelay());
     }
 
     /**
      * Tries to create an instance without a source object.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInitNull() {
-        new CopyObjectDefaultHandler(null);
+        assertThrows(IllegalArgumentException.class, () -> new CopyObjectDefaultHandler(null));
     }
 }

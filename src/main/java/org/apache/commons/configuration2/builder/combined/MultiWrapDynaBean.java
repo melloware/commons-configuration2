@@ -40,7 +40,20 @@ import org.apache.commons.configuration2.beanutils.BeanHelper;
  *
  * @since 2.0
  */
-class MultiWrapDynaBean implements DynaBean {
+final class MultiWrapDynaBean implements DynaBean {
+    /**
+     * Creates a {@code DynaBean} object for the given bean.
+     *
+     * @param bean the bean
+     * @return the {@code DynaBean} for this bean
+     */
+    private static DynaBean createDynaBean(final Object bean) {
+        if (bean instanceof DynaBean) {
+            return (DynaBean) bean;
+        }
+        return BeanHelper.createWrapDynaBean(bean);
+    }
+
     /** Stores the class of this DynaBean. */
     private final DynaClass dynaClass;
 
@@ -57,17 +70,15 @@ class MultiWrapDynaBean implements DynaBean {
         propsToBeans = new HashMap<>();
         final Collection<DynaClass> beanClasses = new ArrayList<>(beans.size());
 
-        for (final Object bean : beans) {
+        beans.forEach(bean -> {
             final DynaBean dynaBean = createDynaBean(bean);
             final DynaClass beanClass = dynaBean.getDynaClass();
             for (final DynaProperty prop : beanClass.getDynaProperties()) {
                 // ensure an order of properties
-                if (!propsToBeans.containsKey(prop.getName())) {
-                    propsToBeans.put(prop.getName(), dynaBean);
-                }
+                propsToBeans.putIfAbsent(prop.getName(), dynaBean);
             }
             beanClasses.add(beanClass);
-        }
+        });
 
         dynaClass = new MultiWrapDynaClass(beanClasses);
     }
@@ -79,6 +90,21 @@ class MultiWrapDynaBean implements DynaBean {
     @Override
     public boolean contains(final String name, final String key) {
         throw new UnsupportedOperationException("contains() operation not supported!");
+    }
+
+    /**
+     * Returns the bean instance to which the given property belongs. If no such bean is found, an arbitrary bean is
+     * returned. (This causes the operation on this bean to fail with a meaningful error message.)
+     *
+     * @param property the property name
+     * @return the bean defining this property
+     */
+    private DynaBean fetchBean(final String property) {
+        DynaBean dynaBean = propsToBeans.get(property);
+        if (dynaBean == null) {
+            dynaBean = propsToBeans.values().iterator().next();
+        }
+        return dynaBean;
     }
 
     @Override
@@ -114,45 +140,17 @@ class MultiWrapDynaBean implements DynaBean {
     }
 
     @Override
-    public void set(final String name, final Object value) {
-        fetchBean(name).set(name, value);
-    }
-
-    @Override
     public void set(final String name, final int index, final Object value) {
         fetchBean(name).set(name, index, value);
     }
 
     @Override
+    public void set(final String name, final Object value) {
+        fetchBean(name).set(name, value);
+    }
+
+    @Override
     public void set(final String name, final String key, final Object value) {
         fetchBean(name).set(name, key, value);
-    }
-
-    /**
-     * Returns the bean instance to which the given property belongs. If no such bean is found, an arbitrary bean is
-     * returned. (This causes the operation on this bean to fail with a meaningful error message.)
-     *
-     * @param property the property name
-     * @return the bean defining this property
-     */
-    private DynaBean fetchBean(final String property) {
-        DynaBean dynaBean = propsToBeans.get(property);
-        if (dynaBean == null) {
-            dynaBean = propsToBeans.values().iterator().next();
-        }
-        return dynaBean;
-    }
-
-    /**
-     * Creates a {@code DynaBean} object for the given bean.
-     *
-     * @param bean the bean
-     * @return the {@code DynaBean} for this bean
-     */
-    private static DynaBean createDynaBean(final Object bean) {
-        if (bean instanceof DynaBean) {
-            return (DynaBean) bean;
-        }
-        return BeanHelper.createWrapDynaBean(bean);
     }
 }

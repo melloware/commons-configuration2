@@ -46,6 +46,19 @@ import java.util.List;
  * @param <T> the type of nodes this class can handle
  */
 public class NodeAddData<T> {
+    /**
+     * Creates the list with path nodes. Handles null input.
+     *
+     * @param intermediateNodes the nodes passed to the constructor
+     * @return an unmodifiable list of path nodes
+     */
+    private static List<String> createPathNodes(final Collection<String> intermediateNodes) {
+        if (intermediateNodes == null) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(intermediateNodes));
+    }
+
     /** Stores the parent node of the add operation. */
     private final T parent;
 
@@ -76,16 +89,7 @@ public class NodeAddData<T> {
     }
 
     /**
-     * Returns a flag if the new node to be added is an attribute.
-     *
-     * @return <b>true</b> for an attribute node, <b>false</b> for a child node
-     */
-    public boolean isAttribute() {
-        return attribute;
-    }
-
-    /**
-     * Returns the name of the new node.
+     * Gets the name of the new node.
      *
      * @return the new node's name
      */
@@ -94,7 +98,7 @@ public class NodeAddData<T> {
     }
 
     /**
-     * Returns the parent node.
+     * Gets the parent node.
      *
      * @return the parent node
      */
@@ -103,7 +107,7 @@ public class NodeAddData<T> {
     }
 
     /**
-     * Returns a list with further nodes that must be added. This is needed if a complete branch is to be added at once. For
+     * Gets a list with further nodes that must be added. This is needed if a complete branch is to be added at once. For
      * instance, imagine that there exists only a node {@code database}. Now the key
      * {@code database.connection.settings.username} (assuming the syntax of the default expression engine) is to be added.
      * Then {@code username} is the name of the new node, but the nodes {@code connection} and {@code settings} must be
@@ -116,15 +120,11 @@ public class NodeAddData<T> {
     }
 
     /**
-     * Creates the list with path nodes. Handles null input.
+     * Returns a flag if the new node to be added is an attribute.
      *
-     * @param intermediateNodes the nodes passed to the constructor
-     * @return an unmodifiable list of path nodes
+     * @return <b>true</b> for an attribute node, <b>false</b> for a child node
      */
-    private static List<String> createPathNodes(final Collection<String> intermediateNodes) {
-        if (intermediateNodes == null) {
-            return Collections.emptyList();
-        }
-        return Collections.unmodifiableList(new ArrayList<>(intermediateNodes));
+    public boolean isAttribute() {
+        return attribute;
     }
 }

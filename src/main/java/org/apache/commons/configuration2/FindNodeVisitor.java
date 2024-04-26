@@ -26,7 +26,7 @@ import org.apache.commons.configuration2.tree.NodeHandler;
  *
  * @param <T> the type of the nodes to be visited
  */
-class FindNodeVisitor<T> extends ConfigurationNodeVisitorAdapter<T> {
+final class FindNodeVisitor<T> extends ConfigurationNodeVisitorAdapter<T> {
     /** The node to be searched for. */
     private final T searchNode;
 
@@ -40,21 +40,6 @@ class FindNodeVisitor<T> extends ConfigurationNodeVisitorAdapter<T> {
      */
     public FindNodeVisitor(final T node) {
         searchNode = node;
-    }
-
-    @Override
-    public void visitBeforeChildren(final T node, final NodeHandler<T> handler) {
-        if (node.equals(searchNode)) {
-            found = true;
-        }
-    }
-
-    /**
-     * {@inheritDoc} This implementation returns <b>true</b> as soon as the node was found.
-     */
-    @Override
-    public boolean terminate() {
-        return found;
     }
 
     /**
@@ -72,5 +57,20 @@ class FindNodeVisitor<T> extends ConfigurationNodeVisitorAdapter<T> {
      */
     public void reset() {
         found = false;
+    }
+
+    /**
+     * {@inheritDoc} This implementation returns <b>true</b> as soon as the node was found.
+     */
+    @Override
+    public boolean terminate() {
+        return found;
+    }
+
+    @Override
+    public void visitBeforeChildren(final T node, final NodeHandler<T> handler) {
+        if (node.equals(searchNode)) {
+            found = true;
+        }
     }
 }

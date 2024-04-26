@@ -17,10 +17,13 @@
 
 package org.apache.commons.configuration2.spring;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.apache.commons.configuration2.PropertiesConfiguration;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,12 +31,12 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 /**
- * test for ConfigurationPropertySource
+ * Tests {@link ConfigurationPropertySource}.
  */
-@RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration
 public class TestConfigurationPropertySource {
 
@@ -41,7 +44,8 @@ public class TestConfigurationPropertySource {
     static class Config {
 
         @Bean
-        public PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer(final ConfigurableEnvironment env) {
+        public PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer(
+                final ConfigurableEnvironment env) {
             final PropertySourcesPlaceholderConfigurer configurer = new PropertySourcesPlaceholderConfigurer();
             // https://jira.spring.io/browse/SPR-9631 may simplify this in
             // future
@@ -52,22 +56,44 @@ public class TestConfigurationPropertySource {
             return configurer;
         }
     }
+
     private static final String TEST_PROPERTY = "test.property";
+
+    private static final String TEST_SYSTEM_PROPERTY = "test.system.property";
 
     private static final String TEST_VALUE = "testVALUE";
 
     private static ConfigurationPropertySource createConfigPropertySource() {
         final PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
         propertiesConfiguration.addProperty(TEST_PROPERTY, TEST_VALUE);
+        propertiesConfiguration.addProperty(TEST_SYSTEM_PROPERTY, "${sys:" + TEST_SYSTEM_PROPERTY + "}");
         return new ConfigurationPropertySource("test configuration", propertiesConfiguration);
+    }
+
+    @BeforeAll
+    public static void setUp() {
+        System.setProperty(TEST_SYSTEM_PROPERTY, TEST_VALUE);
+    }
+
+    @AfterAll
+    public static void tearDown() {
+        System.clearProperty(TEST_SYSTEM_PROPERTY);
     }
 
     @Value("${" + TEST_PROPERTY + "}")
     private String value;
 
+    @Value("${" + TEST_SYSTEM_PROPERTY + "}")
+    private String systemPropertyValue;
+
+    @Test
+    public void testSystemPropertyValueInjection() {
+        assertEquals(TEST_VALUE, systemPropertyValue);
+    }
+
     @Test
     public void testValueInjection() {
-        Assert.assertEquals(TEST_VALUE, value);
+        assertEquals(TEST_VALUE, value);
     }
 
 }

@@ -108,7 +108,7 @@ public class FileHandler {
      * {@code FileLocator} instance stored in an atomic reference by a manipulated instance. (If we already had lambdas,
      * this could be done without a class in a more elegant way.)
      */
-    private abstract class Updater {
+    private abstract class AbstractUpdater {
         /**
          * Performs an update of the enclosing file handler's {@code FileLocator} object.
          */
@@ -150,67 +150,19 @@ public class FileHandler {
 
         @Override
         public void lock(final LockMode mode) {
+            // empty
         }
 
         @Override
         public void setSynchronizer(final Synchronizer sync) {
+            // empty
         }
 
         @Override
         public void unlock(final LockMode mode) {
+            // empty
         }
     };
-
-    /** The file-based object managed by this handler. */
-    private final FileBased content;
-
-    /** A reference to the current {@code FileLocator} object. */
-    private final AtomicReference<FileLocator> fileLocator;
-
-    /** A collection with the registered listeners. */
-    private final List<FileHandlerListener> listeners = new CopyOnWriteArrayList<>();
-
-    /**
-     * Creates a new instance of {@code FileHandler} which is not associated with a {@code FileBased} object and thus does
-     * not have a content. Objects of this kind can be used to define a file location, but it is not possible to actually
-     * load or save data.
-     */
-    public FileHandler() {
-        this(null);
-    }
-
-    /**
-     * Creates a new instance of {@code FileHandler} and sets the managed {@code FileBased} object.
-     *
-     * @param obj the file-based object to manage
-     */
-    public FileHandler(final FileBased obj) {
-        this(obj, emptyFileLocator());
-    }
-
-    /**
-     * Creates a new instance of {@code FileHandler} which is associated with the given {@code FileBased} object and the
-     * location defined for the given {@code FileHandler} object. A copy of the location of the given {@code FileHandler} is
-     * created. This constructor is a possibility to associate a file location with a {@code FileBased} object.
-     *
-     * @param obj the {@code FileBased} object to manage
-     * @param c the {@code FileHandler} from which to copy the location (must not be <b>null</b>)
-     * @throws IllegalArgumentException if the {@code FileHandler} is <b>null</b>
-     */
-    public FileHandler(final FileBased obj, final FileHandler c) {
-        this(obj, checkSourceHandler(c).getFileLocator());
-    }
-
-    /**
-     * Creates a new instance of {@code FileHandler} based on the given {@code FileBased} and {@code FileLocator} objects.
-     *
-     * @param obj the {@code FileBased} object to manage
-     * @param locator the {@code FileLocator}
-     */
-    private FileHandler(final FileBased obj, final FileLocator locator) {
-        content = obj;
-        fileLocator = new AtomicReference<>(locator);
-    }
 
     /**
      * Helper method for checking a file handler which is to be copied. Throws an exception if the handler is <b>null</b>.
@@ -291,6 +243,57 @@ public class FileHandler {
         return fileName;
     }
 
+    /** The file-based object managed by this handler. */
+    private final FileBased content;
+
+    /** A reference to the current {@code FileLocator} object. */
+    private final AtomicReference<FileLocator> fileLocator;
+
+    /** A collection with the registered listeners. */
+    private final List<FileHandlerListener> listeners = new CopyOnWriteArrayList<>();
+
+    /**
+     * Creates a new instance of {@code FileHandler} which is not associated with a {@code FileBased} object and thus does
+     * not have a content. Objects of this kind can be used to define a file location, but it is not possible to actually
+     * load or save data.
+     */
+    public FileHandler() {
+        this(null);
+    }
+
+    /**
+     * Creates a new instance of {@code FileHandler} and sets the managed {@code FileBased} object.
+     *
+     * @param obj the file-based object to manage
+     */
+    public FileHandler(final FileBased obj) {
+        this(obj, emptyFileLocator());
+    }
+
+    /**
+     * Creates a new instance of {@code FileHandler} which is associated with the given {@code FileBased} object and the
+     * location defined for the given {@code FileHandler} object. A copy of the location of the given {@code FileHandler} is
+     * created. This constructor is a possibility to associate a file location with a {@code FileBased} object.
+     *
+     * @param obj the {@code FileBased} object to manage
+     * @param c the {@code FileHandler} from which to copy the location (must not be <b>null</b>)
+     * @throws IllegalArgumentException if the {@code FileHandler} is <b>null</b>
+     */
+    public FileHandler(final FileBased obj, final FileHandler c) {
+        this(obj, checkSourceHandler(c).getFileLocator());
+    }
+
+    /**
+     * Creates a new instance of {@code FileHandler} based on the given {@code FileBased} and {@code FileLocator} objects.
+     *
+     * @param obj the {@code FileBased} object to manage
+     * @param locator the {@code FileLocator}
+     */
+    private FileHandler(final FileBased obj, final FileLocator locator) {
+        content = obj;
+        fileLocator = new AtomicReference<>(locator);
+    }
+
     /**
      * Adds a listener to this {@code FileHandler}. It is notified about property changes and IO operations.
      *
@@ -332,7 +335,7 @@ public class FileHandler {
      * Clears the location of this {@code FileHandler}. Afterwards this handler does not point to any valid file.
      */
     public void clearLocation() {
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.basePath(null).fileName(null).sourceURL(null);
@@ -370,49 +373,39 @@ public class FileHandler {
      * Notifies the registered listeners about a completed load operation.
      */
     private void fireLoadedEvent() {
-        for (final FileHandlerListener l : listeners) {
-            l.loaded(this);
-        }
+        listeners.forEach(l -> l.loaded(this));
     }
 
     /**
      * Notifies the registered listeners about the start of a load operation.
      */
     private void fireLoadingEvent() {
-        for (final FileHandlerListener l : listeners) {
-            l.loading(this);
-        }
+        listeners.forEach(l -> l.loading(this));
     }
 
     /**
      * Notifies the registered listeners about a property update.
      */
     private void fireLocationChangedEvent() {
-        for (final FileHandlerListener l : listeners) {
-            l.locationChanged(this);
-        }
+        listeners.forEach(l -> l.locationChanged(this));
     }
 
     /**
      * Notifies the registered listeners about a completed save operation.
      */
     private void fireSavedEvent() {
-        for (final FileHandlerListener l : listeners) {
-            l.saved(this);
-        }
+        listeners.forEach(l -> l.saved(this));
     }
 
     /**
      * Notifies the registered listeners about the start of a save operation.
      */
     private void fireSavingEvent() {
-        for (final FileHandlerListener l : listeners) {
-            l.saving(this);
-        }
+        listeners.forEach(l -> l.saving(this));
     }
 
     /**
-     * Return the base path. If no base path is defined, but a URL, the base path is derived from there.
+     * Gets the base path. If no base path is defined, but a URL, the base path is derived from there.
      *
      * @return the base path
      */
@@ -430,7 +423,7 @@ public class FileHandler {
     }
 
     /**
-     * Returns the {@code FileBased} object associated with this {@code FileHandler}.
+     * Gets the {@code FileBased} object associated with this {@code FileHandler}.
      *
      * @return the associated {@code FileBased} object
      */
@@ -439,7 +432,7 @@ public class FileHandler {
     }
 
     /**
-     * Returns the encoding of the associated file. Result can be <b>null</b> if no encoding has been set.
+     * Gets the encoding of the associated file. Result can be <b>null</b> if no encoding has been set.
      *
      * @return the encoding of the associated file
      */
@@ -448,7 +441,7 @@ public class FileHandler {
     }
 
     /**
-     * Returns the location of the associated file as a {@code File} object. If the base path is a URL with a protocol
+     * Gets the location of the associated file as a {@code File} object. If the base path is a URL with a protocol
      * different than &quot;file&quot;, or the file is within a compressed archive, the return value will not point to a
      * valid file object.
      *
@@ -459,7 +452,7 @@ public class FileHandler {
     }
 
     /**
-     * Returns a {@code FileLocator} object with the specification of the file stored by this {@code FileHandler}. Note that
+     * Gets a {@code FileLocator} object with the specification of the file stored by this {@code FileHandler}. Note that
      * this method returns the internal data managed by this {@code FileHandler} as it was defined. This is not necessarily
      * the same as the data returned by the single access methods like {@code getFileName()} or {@code getURL()}: These
      * methods try to derive missing data from other values that have been set.
@@ -471,7 +464,7 @@ public class FileHandler {
     }
 
     /**
-     * Return the name of the file. If only a URL is defined, the file name is derived from there.
+     * Gets the name of the file. If only a URL is defined, the file name is derived from there.
      *
      * @return the file name
      */
@@ -489,28 +482,28 @@ public class FileHandler {
     }
 
     /**
-     * Returns the {@code FileSystem} to be used by this object when locating files. Result is never <b>null</b>; if no file
+     * Gets the {@code FileSystem} to be used by this object when locating files. Result is never <b>null</b>; if no file
      * system has been set, the default file system is returned.
      *
      * @return the used {@code FileSystem}
      */
     public FileSystem getFileSystem() {
-        return FileLocatorUtils.obtainFileSystem(getFileLocator());
+        return FileLocatorUtils.getFileSystem(getFileLocator());
     }
 
     /**
-     * Returns the {@code FileLocationStrategy} to be applied when accessing the associated file. This method never returns
+     * Gets the {@code FileLocationStrategy} to be applied when accessing the associated file. This method never returns
      * <b>null</b>. If a {@code FileLocationStrategy} has been set, it is returned. Otherwise, result is the default
      * {@code FileLocationStrategy}.
      *
      * @return the {@code FileLocationStrategy} to be used
      */
     public FileLocationStrategy getLocationStrategy() {
-        return FileLocatorUtils.obtainLocationStrategy(getFileLocator());
+        return FileLocatorUtils.getLocationStrategy(getFileLocator());
     }
 
     /**
-     * Returns the full path to the associated file. The return value is a valid {@code File} path only if this location is
+     * Gets the full path to the associated file. The return value is a valid {@code File} path only if this location is
      * based on a file on the local disk. If the file was loaded from a packed archive, the returned value is the string
      * form of the URL from which the file was loaded.
      *
@@ -519,11 +512,11 @@ public class FileHandler {
     public String getPath() {
         final FileLocator locator = getFileLocator();
         final File file = createFile(locator);
-        return FileLocatorUtils.obtainFileSystem(locator).getPath(file, locator.getSourceURL(), locator.getBasePath(), locator.getFileName());
+        return FileLocatorUtils.getFileSystem(locator).getPath(file, locator.getSourceURL(), locator.getBasePath(), locator.getFileName());
     }
 
     /**
-     * Returns the location of the associated file as a URL. If a URL is set, it is directly returned. Otherwise, an attempt
+     * Gets the location of the associated file as a URL. If a URL is set, it is directly returned. Otherwise, an attempt
      * to locate the referenced file is made.
      *
      * @return a URL to the associated file; can be <b>null</b> if the location is unspecified
@@ -697,9 +690,9 @@ public class FileHandler {
         InputStream in = null;
 
         try {
-            final FileSystem obtainFileSystem = FileLocatorUtils.obtainFileSystem(locator);
+            final FileSystem fileSystem = FileLocatorUtils.getFileSystem(locator);
             final URLConnectionOptions urlConnectionOptions = locator.getURLConnectionOptions();
-            in = urlConnectionOptions == null ? obtainFileSystem.getInputStream(url) : obtainFileSystem.getInputStream(url, urlConnectionOptions);
+            in = urlConnectionOptions == null ? fileSystem.getInputStream(url) : fileSystem.getInputStream(url, urlConnectionOptions);
             loadFromStream(in, locator.getEncoding(), url);
         } catch (final ConfigurationException e) {
             throw e;
@@ -882,7 +875,7 @@ public class FileHandler {
         OutputStream out = null;
 
         try {
-            out = FileLocatorUtils.obtainFileSystem(locator).getOutputStream(file);
+            out = FileLocatorUtils.getFileSystem(locator).getOutputStream(file);
             saveToStream(out, locator.getEncoding(), file.toURI().toURL());
         } catch (final MalformedURLException muex) {
             throw new ConfigurationException(muex);
@@ -963,7 +956,7 @@ public class FileHandler {
     private void save(final String fileName, final FileLocator locator) throws ConfigurationException {
         final URL url;
         try {
-            url = FileLocatorUtils.obtainFileSystem(locator).getURL(locator.getBasePath(), fileName);
+            url = FileLocatorUtils.getFileSystem(locator).getURL(locator.getBasePath(), fileName);
         } catch (final MalformedURLException e) {
             throw new ConfigurationException(e);
         }
@@ -995,7 +988,7 @@ public class FileHandler {
     private void save(final URL url, final FileLocator locator) throws ConfigurationException {
         OutputStream out = null;
         try {
-            out = FileLocatorUtils.obtainFileSystem(locator).getOutputStream(url);
+            out = FileLocatorUtils.getFileSystem(locator).getOutputStream(url);
             saveToStream(out, locator.getEncoding(), url);
             if (out instanceof VerifiableOutputStream) {
                 try {
@@ -1086,7 +1079,7 @@ public class FileHandler {
      */
     public void setBasePath(final String basePath) {
         final String path = normalizeFileURL(basePath);
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.basePath(path);
@@ -1102,7 +1095,7 @@ public class FileHandler {
      * @param encoding the encoding of the associated file
      */
     public void setEncoding(final String encoding) {
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.encoding(encoding);
@@ -1119,7 +1112,7 @@ public class FileHandler {
     public void setFile(final File file) {
         final String fileName = file.getName();
         final String basePath = file.getParentFile() != null ? file.getParentFile().getAbsolutePath() : null;
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.fileName(fileName).basePath(basePath).sourceURL(null);
@@ -1143,7 +1136,7 @@ public class FileHandler {
     }
 
     /**
-     * Set the name of the file. The passed in file name can contain a relative path. It must be used when referring files
+     * Sets the name of the file. The passed in file name can contain a relative path. It must be used when referring files
      * with relative paths from classpath. Use {@code setPath()} to set a full qualified file name. The URL is set to
      * <b>null</b> as it has to be determined anew based on the file name and the base path.
      *
@@ -1151,7 +1144,7 @@ public class FileHandler {
      */
     public void setFileName(final String fileName) {
         final String name = normalizeFileURL(fileName);
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.fileName(name);
@@ -1167,7 +1160,7 @@ public class FileHandler {
      * @param fileSystem the {@code FileSystem}
      */
     public void setFileSystem(final FileSystem fileSystem) {
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.fileSystem(fileSystem);
@@ -1184,7 +1177,7 @@ public class FileHandler {
      * @see FileLocatorUtils#DEFAULT_LOCATION_STRATEGY
      */
     public void setLocationStrategy(final FileLocationStrategy strategy) {
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.locationStrategy(strategy);
@@ -1226,7 +1219,7 @@ public class FileHandler {
      * @since 2.8.0
      */
     public void setURL(final URL url, final URLConnectionOptions urlConnectionOptions) {
-        new Updater() {
+        new AbstractUpdater() {
             @Override
             protected void updateBuilder(final FileLocatorBuilder builder) {
                 builder.sourceURL(url);

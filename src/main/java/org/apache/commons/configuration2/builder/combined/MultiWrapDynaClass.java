@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.apache.commons.beanutils2.DynaBean;
 import org.apache.commons.beanutils2.DynaClass;
@@ -32,7 +33,7 @@ import org.apache.commons.beanutils2.DynaProperty;
  *
  * @since 2.0
  */
-class MultiWrapDynaClass implements DynaClass {
+final class MultiWrapDynaClass implements DynaClass {
     /** An empty array for converting the properties collection to an array. */
     private static final DynaProperty[] EMPTY_PROPS = {};
 
@@ -53,6 +54,16 @@ class MultiWrapDynaClass implements DynaClass {
         initProperties(wrappedCls);
     }
 
+    @Override
+    public DynaProperty[] getDynaProperties() {
+        return properties.toArray(EMPTY_PROPS);
+    }
+
+    @Override
+    public DynaProperty getDynaProperty(final String name) {
+        return namedProperties.get(name);
+    }
+
     /**
      * {@inheritDoc} The name of this class is not relevant.
      */
@@ -61,14 +72,16 @@ class MultiWrapDynaClass implements DynaClass {
         return null;
     }
 
-    @Override
-    public DynaProperty getDynaProperty(final String name) {
-        return namedProperties.get(name);
-    }
-
-    @Override
-    public DynaProperty[] getDynaProperties() {
-        return properties.toArray(EMPTY_PROPS);
+    /**
+     * Initializes the members related to the properties of the wrapped classes.
+     *
+     * @param wrappedCls the collection with the wrapped classes
+     */
+    private void initProperties(final Collection<? extends DynaClass> wrappedCls) {
+        wrappedCls.forEach(cls -> Stream.of(cls.getDynaProperties()).forEach(p -> {
+            properties.add(p);
+            namedProperties.put(p.getName(), p);
+        }));
     }
 
     /**
@@ -78,20 +91,5 @@ class MultiWrapDynaClass implements DynaClass {
     @Override
     public DynaBean newInstance() throws IllegalAccessException, InstantiationException {
         throw new UnsupportedOperationException("Cannot create an instance of MultiWrapDynaBean!");
-    }
-
-    /**
-     * Initializes the members related to the properties of the wrapped classes.
-     *
-     * @param wrappedCls the collection with the wrapped classes
-     */
-    private void initProperties(final Collection<? extends DynaClass> wrappedCls) {
-        for (final DynaClass cls : wrappedCls) {
-            final DynaProperty[] props = cls.getDynaProperties();
-            for (final DynaProperty p : props) {
-                properties.add(p);
-                namedProperties.put(p.getName(), p);
-            }
-        }
     }
 }

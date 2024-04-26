@@ -39,40 +39,62 @@ import org.apache.commons.jxpath.ri.model.NodePointerFactory;
  * @since 1.3
  */
 public class ConfigurationNodePointerFactory implements NodePointerFactory {
+    /**
+     * An internally used wrapper class that holds all information for processing a query for a specific node.
+     *
+     * @param <T> the type of the nodes this class deals with
+     */
+    static class NodeWrapper<T> {
+        /** Stores the node. */
+        private final T node;
+
+        /** Stores the corresponding node handler. */
+        private final NodeHandler<T> nodeHandler;
+
+        /**
+         * Creates a new instance of {@code NodeWrapper} and initializes it.
+         *
+         * @param nd the node
+         * @param handler the node handler
+         */
+        public NodeWrapper(final T nd, final NodeHandler<T> handler) {
+            node = nd;
+            nodeHandler = handler;
+        }
+
+        /**
+         * Gets the wrapped node.
+         *
+         * @return the node
+         */
+        public T getNode() {
+            return node;
+        }
+
+        /**
+         * Gets the node handler for the wrapped node.
+         *
+         * @return the node handler
+         */
+        public NodeHandler<T> getNodeHandler() {
+            return nodeHandler;
+        }
+    }
+
     /** Constant for the order of this factory. */
     public static final int CONFIGURATION_NODE_POINTER_FACTORY_ORDER = 200;
 
     /**
-     * Returns the order of this factory between other factories.
+     * Creates a node wrapper for the specified node and its handler. This wrapper has to be passed to the JXPath context
+     * instead of the original node.
      *
-     * @return this order's factory
+     * @param <T> the type of the node
+     * @param node the node
+     * @param handler the corresponding node handler
+     * @return a wrapper for this node
      */
-    @Override
-    public int getOrder() {
-        return CONFIGURATION_NODE_POINTER_FACTORY_ORDER;
-    }
-
-    /**
-     * Creates a node pointer for the specified bean. If the bean is a configuration node (indicated by a wrapper object), a
-     * corresponding pointer is returned.
-     *
-     * @param name the name of the node
-     * @param bean the bean
-     * @param locale the locale
-     * @return a pointer for a configuration node if the bean is such a node
-     */
-    @Override
-    @SuppressWarnings("unchecked")
-    /*
-     * Type casts are safe here; because of the way the NodeWrapper was constructed the node handler must be compatible with
-     * the node.
-     */
-    public NodePointer createNodePointer(final QName name, final Object bean, final Locale locale) {
-        if (bean instanceof NodeWrapper) {
-            final NodeWrapper<Object> wrapper = (NodeWrapper<Object>) bean;
-            return new ConfigurationNodePointer<>(wrapper.getNode(), locale, wrapper.getNodeHandler());
-        }
-        return null;
+    public static <T> Object wrapNode(final T node, final NodeHandler<T> handler) {
+        return new NodeWrapper<>(node, handler);
     }
 
     /**
@@ -99,57 +121,35 @@ public class ConfigurationNodePointerFactory implements NodePointerFactory {
     }
 
     /**
-     * Creates a node wrapper for the specified node and its handler. This wrapper has to be passed to the JXPath context
-     * instead of the original node.
+     * Creates a node pointer for the specified bean. If the bean is a configuration node (indicated by a wrapper object), a
+     * corresponding pointer is returned.
      *
-     * @param <T> the type of the node
-     * @param node the node
-     * @param handler the corresponding node handler
-     * @return a wrapper for this node
+     * @param name the name of the node
+     * @param bean the bean
+     * @param locale the locale
+     * @return a pointer for a configuration node if the bean is such a node
      */
-    public static <T> Object wrapNode(final T node, final NodeHandler<T> handler) {
-        return new NodeWrapper<>(node, handler);
+    @Override
+    @SuppressWarnings("unchecked")
+    /*
+     * Type casts are safe here; because of the way the NodeWrapper was constructed the node handler must be compatible with
+     * the node.
+     */
+    public NodePointer createNodePointer(final QName name, final Object bean, final Locale locale) {
+        if (bean instanceof NodeWrapper) {
+            final NodeWrapper<Object> wrapper = (NodeWrapper<Object>) bean;
+            return new ConfigurationNodePointer<>(wrapper.getNode(), locale, wrapper.getNodeHandler());
+        }
+        return null;
     }
 
     /**
-     * An internally used wrapper class that holds all information for processing a query for a specific node.
+     * Gets the order of this factory between other factories.
      *
-     * @param <T> the type of the nodes this class deals with
+     * @return this order's factory
      */
-    static class NodeWrapper<T> {
-        /** Stores the node. */
-        private final T node;
-
-        /** Stores the corresponding node handler. */
-        private final NodeHandler<T> nodeHandler;
-
-        /**
-         * Creates a new instance of {@code NodeWrapper} and initializes it.
-         *
-         * @param nd the node
-         * @param handler the node handler
-         */
-        public NodeWrapper(final T nd, final NodeHandler<T> handler) {
-            node = nd;
-            nodeHandler = handler;
-        }
-
-        /**
-         * Returns the wrapped node.
-         *
-         * @return the node
-         */
-        public T getNode() {
-            return node;
-        }
-
-        /**
-         * Returns the node handler for the wrapped node.
-         *
-         * @return the node handler
-         */
-        public NodeHandler<T> getNodeHandler() {
-            return nodeHandler;
-        }
+    @Override
+    public int getOrder() {
+        return CONFIGURATION_NODE_POINTER_FACTORY_ORDER;
     }
 }

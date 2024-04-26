@@ -16,11 +16,12 @@
  */
 package org.apache.commons.configuration2.builder.combined;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,19 +29,17 @@ import java.util.Map;
 import org.apache.commons.configuration2.beanutils.BeanHelper;
 import org.apache.commons.configuration2.builder.BuilderParameters;
 import org.apache.commons.configuration2.builder.FileBasedBuilderParametersImpl;
-import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code MultiFileBuilderParametersImpl}.
- *
  */
 public class TestMultiFileBuilderParametersImpl {
     /** The parameters object to be tested. */
     private MultiFileBuilderParametersImpl params;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         params = new MultiFileBuilderParametersImpl();
     }
@@ -50,17 +49,16 @@ public class TestMultiFileBuilderParametersImpl {
      */
     @Test
     public void testBeanProperties() throws Exception {
-        final BuilderParameters bp = EasyMock.createMock(BuilderParameters.class);
-        EasyMock.replay(bp);
+        final BuilderParameters bp = mock(BuilderParameters.class);
         final String pattern = "testPattern";
         BeanHelper.setProperty(params, "filePattern", pattern);
         BeanHelper.setProperty(params, "managedBuilderParameters", bp);
         BeanHelper.setProperty(params, "throwExceptionOnMissing", Boolean.TRUE);
         final Map<String, Object> map = params.getParameters();
-        assertEquals("Exception flag not set", Boolean.TRUE, map.get("throwExceptionOnMissing"));
-        assertSame("Wrong parameters instance", params, MultiFileBuilderParametersImpl.fromParameters(map));
-        assertEquals("Wrong pattern", pattern, params.getFilePattern());
-        assertSame("Wrong managed parameters", bp, params.getManagedBuilderParameters());
+        assertEquals(Boolean.TRUE, map.get("throwExceptionOnMissing"));
+        assertSame(params, MultiFileBuilderParametersImpl.fromParameters(map));
+        assertEquals(pattern, params.getFilePattern());
+        assertSame(bp, params.getManagedBuilderParameters());
     }
 
     /**
@@ -73,10 +71,10 @@ public class TestMultiFileBuilderParametersImpl {
         params.setManagedBuilderParameters(managedParams);
         params.setFilePattern("somePattern");
         final MultiFileBuilderParametersImpl clone = params.clone();
-        assertEquals("Wrong pattern", params.getFilePattern(), clone.getFilePattern());
-        assertNotSame("Managed parameters not cloned", params.getManagedBuilderParameters(), clone.getManagedBuilderParameters());
-        assertEquals("Wrong file name", managedParams.getFileHandler().getFileName(),
-            ((FileBasedBuilderParametersImpl) clone.getManagedBuilderParameters()).getFileHandler().getFileName());
+        assertEquals(params.getFilePattern(), clone.getFilePattern());
+        assertNotSame(params.getManagedBuilderParameters(), clone.getManagedBuilderParameters());
+        assertEquals(managedParams.getFileHandler().getFileName(),
+                ((FileBasedBuilderParametersImpl) clone.getManagedBuilderParameters()).getFileHandler().getFileName());
     }
 
     /**
@@ -85,7 +83,7 @@ public class TestMultiFileBuilderParametersImpl {
     @Test
     public void testFromParametersFound() {
         final Map<String, Object> map = params.getParameters();
-        assertSame("Instance not found", params, MultiFileBuilderParametersImpl.fromParameters(map, true));
+        assertSame(params, MultiFileBuilderParametersImpl.fromParameters(map, true));
     }
 
     /**
@@ -94,7 +92,7 @@ public class TestMultiFileBuilderParametersImpl {
     @Test
     public void testFromParametersNewInstance() {
         params = MultiFileBuilderParametersImpl.fromParameters(new HashMap<>(), true);
-        assertNotNull("No new instance", params);
+        assertNotNull(params);
     }
 
     /**
@@ -102,7 +100,7 @@ public class TestMultiFileBuilderParametersImpl {
      */
     @Test
     public void testFromParatersNotFound() {
-        assertNull("Got an instance", MultiFileBuilderParametersImpl.fromParameters(new HashMap<>()));
+        assertNull(MultiFileBuilderParametersImpl.fromParameters(new HashMap<>()));
     }
 
     /**
@@ -111,8 +109,8 @@ public class TestMultiFileBuilderParametersImpl {
     @Test
     public void testSetFilePattern() {
         final String pattern = "somePattern";
-        assertSame("Wrong result", params, params.setFilePattern(pattern));
-        assertEquals("Pattern not set", pattern, params.getFilePattern());
+        assertSame(params, params.setFilePattern(pattern));
+        assertEquals(pattern, params.getFilePattern());
     }
 
     /**
@@ -120,9 +118,8 @@ public class TestMultiFileBuilderParametersImpl {
      */
     @Test
     public void testSetManagedBuilderParameters() {
-        final BuilderParameters bp = EasyMock.createMock(BuilderParameters.class);
-        EasyMock.replay(bp);
-        assertSame("Wrong result", params, params.setManagedBuilderParameters(bp));
-        assertSame("Parameters not set", bp, params.getManagedBuilderParameters());
+        final BuilderParameters bp = mock(BuilderParameters.class);
+        assertSame(params, params.setManagedBuilderParameters(bp));
+        assertSame(bp, params.getManagedBuilderParameters());
     }
 }

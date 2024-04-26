@@ -17,13 +17,15 @@
 
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -36,12 +38,10 @@ import org.apache.commons.configuration2.builder.combined.CombinedConfigurationB
 import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
 import org.apache.commons.configuration2.convert.ListDelimiterHandler;
 import org.apache.commons.configuration2.interpol.ConfigurationInterpolator;
-import org.easymock.EasyMock;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test case for the {@link SubsetConfiguration} class.
- *
  */
 public class TestSubsetConfiguration {
     static final String TEST_DIR = ConfigurationAssert.TEST_DIR_NAME;
@@ -56,8 +56,16 @@ public class TestSubsetConfiguration {
         final Configuration subset = config.subset("test");
         subset.clear();
 
-        assertTrue("the subset is not empty", subset.isEmpty());
-        assertFalse("the parent configuration is empty", config.isEmpty());
+        assertTrue(subset.isEmpty());
+        assertFalse(config.isEmpty());
+    }
+
+    /**
+     * Tries to create an instance without a parent configuration.
+     */
+    @Test
+    public void testConstructNullParent() {
+        assertThrows(NullPointerException.class, () -> new SubsetConfiguration(null, ""));
     }
 
     @Test
@@ -65,13 +73,13 @@ public class TestSubsetConfiguration {
         final Configuration conf = new BaseConfiguration();
         // subset with delimiter
         SubsetConfiguration subset = new SubsetConfiguration(conf, "prefix", ".");
-        assertEquals("parent key for \"prefixkey\"", "key", subset.getChildKey("prefix.key"));
-        assertEquals("parent key for \"prefix\"", "", subset.getChildKey("prefix"));
+        assertEquals("key", subset.getChildKey("prefix.key"));
+        assertEquals("", subset.getChildKey("prefix"));
 
         // subset without delimiter
         subset = new SubsetConfiguration(conf, "prefix", null);
-        assertEquals("parent key for \"prefixkey\"", "key", subset.getChildKey("prefixkey"));
-        assertEquals("parent key for \"prefix\"", "", subset.getChildKey("prefix"));
+        assertEquals("key", subset.getChildKey("prefixkey"));
+        assertEquals("", subset.getChildKey("prefix"));
     }
 
     @Test
@@ -84,9 +92,9 @@ public class TestSubsetConfiguration {
         final Configuration subset = new SubsetConfiguration(conf, "test", ".");
 
         final Iterator<String> it = subset.getKeys();
-        assertEquals("1st key", "", it.next());
-        assertEquals("2nd key", "key1", it.next());
-        assertFalse("too many elements", it.hasNext());
+        assertEquals("", it.next());
+        assertEquals("key1", it.next());
+        assertFalse(it.hasNext());
     }
 
     @Test
@@ -99,9 +107,9 @@ public class TestSubsetConfiguration {
         final Configuration subset = new SubsetConfiguration(conf, "test", ".");
 
         final Iterator<String> it = subset.getKeys("abc");
-        assertEquals("1st key", "abc", it.next());
-        assertEquals("2nd key", "abc.key1", it.next());
-        assertFalse("too many elements", it.hasNext());
+        assertEquals("abc", it.next());
+        assertEquals("abc.key1", it.next());
+        assertFalse(it.hasNext());
     }
 
     @Test
@@ -125,7 +133,7 @@ public class TestSubsetConfiguration {
         final AbstractConfiguration subset = (AbstractConfiguration) config.subset("prefix");
         final ListDelimiterHandler listHandler = new DefaultListDelimiterHandler(',');
         config.setListDelimiterHandler(listHandler);
-        assertSame("Not list handler from parent", listHandler, subset.getListDelimiterHandler());
+        assertSame(listHandler, subset.getListDelimiterHandler());
     }
 
     @Test
@@ -133,7 +141,7 @@ public class TestSubsetConfiguration {
         final Configuration conf = new BaseConfiguration();
         final SubsetConfiguration subset = new SubsetConfiguration(conf, "prefix", ".");
 
-        assertEquals("parent", conf, subset.getParent());
+        assertEquals(conf, subset.getParent());
     }
 
     @Test
@@ -141,13 +149,13 @@ public class TestSubsetConfiguration {
         final Configuration conf = new BaseConfiguration();
         // subset with delimiter
         SubsetConfiguration subset = new SubsetConfiguration(conf, "prefix", ".");
-        assertEquals("parent key for \"key\"", "prefix.key", subset.getParentKey("key"));
-        assertEquals("parent key for \"\"", "prefix", subset.getParentKey(""));
+        assertEquals("prefix.key", subset.getParentKey("key"));
+        assertEquals("prefix", subset.getParentKey(""));
 
         // subset without delimiter
         subset = new SubsetConfiguration(conf, "prefix", null);
-        assertEquals("parent key for \"key\"", "prefixkey", subset.getParentKey("key"));
-        assertEquals("parent key for \"\"", "prefix", subset.getParentKey(""));
+        assertEquals("prefixkey", subset.getParentKey("key"));
+        assertEquals("prefix", subset.getParentKey(""));
     }
 
     @Test
@@ -155,7 +163,7 @@ public class TestSubsetConfiguration {
         final Configuration conf = new BaseConfiguration();
         final SubsetConfiguration subset = new SubsetConfiguration(conf, "prefix", ".");
 
-        assertEquals("prefix", "prefix", subset.getPrefix());
+        assertEquals("prefix", subset.getPrefix());
     }
 
     @Test
@@ -165,17 +173,9 @@ public class TestSubsetConfiguration {
         conf.setProperty("testing.key2", "value1");
 
         final Configuration subset = new SubsetConfiguration(conf, "test", ".");
-        assertFalse("the subset is empty", subset.isEmpty());
-        assertTrue("'key1' not found in the subset", subset.containsKey("key1"));
-        assertFalse("'ng.key2' found in the subset", subset.containsKey("ng.key2"));
-    }
-
-    /**
-     * Tries to create an instance without a parent configuration.
-     */
-    @Test(expected = IllegalArgumentException.class)
-    public void testInitNoParent() {
-        new SubsetConfiguration(null, "");
+        assertFalse(subset.isEmpty());
+        assertTrue(subset.containsKey("key1"));
+        assertFalse(subset.containsKey("ng.key2"));
     }
 
     @Test
@@ -184,7 +184,7 @@ public class TestSubsetConfiguration {
         config.setProperty("test", "junit");
         config.setProperty("prefix.key", "${test}");
         final AbstractConfiguration subset = (AbstractConfiguration) config.subset("prefix");
-        assertEquals("Interpolation does not resolve parent keys", "junit", subset.getString("key", ""));
+        assertEquals("junit", subset.getString("key", ""));
     }
 
     /**
@@ -206,11 +206,11 @@ public class TestSubsetConfiguration {
         final Configuration subset = config.subset("prefix");
         config.setListDelimiterHandler(new DefaultListDelimiterHandler('/'));
         subset.addProperty("list", "a/b/c");
-        assertEquals("Wrong size of list", 3, config.getList("prefix.list").size());
+        assertEquals(3, config.getList("prefix.list").size());
 
         ((AbstractConfiguration) subset).setListDelimiterHandler(new DefaultListDelimiterHandler(';'));
         subset.addProperty("list2", "a;b;c");
-        assertEquals("Wrong size of list2", 3, config.getList("prefix.list2").size());
+        assertEquals(3, config.getList("prefix.list2").size());
     }
 
     @Test
@@ -220,7 +220,7 @@ public class TestSubsetConfiguration {
         interpolator.registerLookup("brackets", key -> "(" + key + ")");
         config.setProperty("prefix.var", "${brackets:x}");
         final AbstractConfiguration subset = (AbstractConfiguration) config.subset("prefix");
-        assertEquals("Local lookup was not inherited", "(x)", subset.getString("var", ""));
+        assertEquals("(x)", subset.getString("var", ""));
     }
 
     @Test
@@ -243,6 +243,63 @@ public class TestSubsetConfiguration {
         assertTrue(keys.isEmpty());
     }
 
+    @Test
+    public void testPrefixDelimiter(){
+        final BaseConfiguration config = new BaseConfiguration();
+        config.setProperty("part1.part2@test.key1", "value1");
+        config.setProperty("part1.part2", "value2");
+        config.setProperty("part3.part4@testing.key2", "value3");
+
+        final SubsetConfiguration subset = new SubsetConfiguration(config, "part1.part2", "@");
+        // Check subset properties
+        assertEquals("value1", subset.getString("test.key1"));
+        assertEquals("value2", subset.getString(""));
+        assertNull(subset.getString("testing.key2"));
+
+        // Check for empty subset configuration and iterator
+        assertEquals(2, subset.size());
+        assertFalse(subset.isEmpty());
+        assertTrue(subset.getKeys().hasNext());
+    }
+
+    @Test
+    public void testPrefixDelimiterNegativeTest(){
+        final BaseConfiguration config = new BaseConfiguration();
+        config.setProperty("part1.part2@test.key1", "value1");
+        config.setProperty("part3.part4@testing.key2", "value2");
+
+        final SubsetConfiguration subset = new SubsetConfiguration(config, "part1.part2", "@") {
+            // Anonymous inner class declaration to override SubsetConfiguration.getKeysInternal() - Call
+            // ImutableConfiguration.getKeys(String) on the parent configuration of the SubsetConfiguration in order to
+            // not consequently pass the prefix delimiter
+            @Override
+            protected Iterator<String> getKeysInternal() {
+                Class<?> subsetIteratorClass;
+                try {
+                    subsetIteratorClass = Class
+                            .forName("org.apache.commons.configuration2.SubsetConfiguration$SubsetIterator");
+                    final Constructor<?> ctor = subsetIteratorClass.getDeclaredConstructor(SubsetConfiguration.class,
+                            Iterator.class);
+                    ctor.setAccessible(true);
+
+                    return (Iterator<String>) ctor.newInstance(this, parent.getKeys("part1.part2"));
+                } catch (final Exception ex) {
+                    throw new IllegalArgumentException(ex);
+                }
+            }
+        };
+
+        // Check subset properties - contains one property
+        assertEquals("value1", subset.getString("test.key1"));
+        assertNull(subset.getString("testing.key2"));
+
+        // Check for empty subset configuration and iterator - even if the SubsetConfiguration contains properties, like
+        // checked previously its states that it is empty
+        assertEquals(0, subset.size());
+        assertTrue(subset.isEmpty());
+        assertFalse(subset.getKeys().hasNext());
+    }
+
     /**
      * Tests whether the list delimiter handler is also set for the parent configuration.
      */
@@ -252,7 +309,7 @@ public class TestSubsetConfiguration {
         final AbstractConfiguration subset = (AbstractConfiguration) config.subset("prefix");
         final ListDelimiterHandler listHandler = new DefaultListDelimiterHandler(',');
         subset.setListDelimiterHandler(listHandler);
-        assertSame("Handler not passed to parent", listHandler, config.getListDelimiterHandler());
+        assertSame(listHandler, config.getListDelimiterHandler());
     }
 
     /**
@@ -261,12 +318,11 @@ public class TestSubsetConfiguration {
      */
     @Test
     public void testSetListDelimiterHandlerParentNotSupported() {
-        final Configuration config = EasyMock.createNiceMock(Configuration.class);
-        EasyMock.replay(config);
+        final Configuration config = mock(Configuration.class);
         final SubsetConfiguration subset = new SubsetConfiguration(config, "prefix");
         final ListDelimiterHandler listHandler = new DefaultListDelimiterHandler(',');
         subset.setListDelimiterHandler(listHandler);
-        assertSame("List delimiter handler not set", listHandler, subset.getListDelimiterHandler());
+        assertSame(listHandler, subset.getListDelimiterHandler());
     }
 
     @Test
@@ -275,7 +331,7 @@ public class TestSubsetConfiguration {
         final SubsetConfiguration subset = new SubsetConfiguration(conf, null, ".");
         subset.setPrefix("prefix");
 
-        assertEquals("prefix", "prefix", subset.getPrefix());
+        assertEquals("prefix", subset.getPrefix());
     }
 
     @Test
@@ -285,13 +341,13 @@ public class TestSubsetConfiguration {
 
         // set a property in the subset and check the parent
         subset.setProperty("key1", "value1");
-        assertEquals("key1 in the subset configuration", "value1", subset.getProperty("key1"));
-        assertEquals("test.key1 in the parent configuration", "value1", conf.getProperty("test.key1"));
+        assertEquals("value1", subset.getProperty("key1"));
+        assertEquals("value1", conf.getProperty("test.key1"));
 
         // set a property in the parent and check in the subset
         conf.setProperty("test.key2", "value2");
-        assertEquals("test.key2 in the parent configuration", "value2", conf.getProperty("test.key2"));
-        assertEquals("key2 in the subset configuration", "value2", subset.getProperty("key2"));
+        assertEquals("value2", conf.getProperty("test.key2"));
+        assertEquals("value2", subset.getProperty("key2"));
     }
 
     @Test
@@ -301,22 +357,12 @@ public class TestSubsetConfiguration {
 
         final SubsetConfiguration subset = new SubsetConfiguration(config, "prefix");
 
-        try {
-            subset.getString("foo");
-            fail("NoSuchElementException expected");
-        } catch (final NoSuchElementException e) {
-            // expected
-        }
+        assertThrows(NoSuchElementException.class, () -> subset.getString("foo"));
 
         config.setThrowExceptionOnMissing(false);
         assertNull(subset.getString("foo"));
 
         subset.setThrowExceptionOnMissing(true);
-        try {
-            config.getString("foo");
-            fail("NoSuchElementException expected");
-        } catch (final NoSuchElementException e) {
-            // expected
-        }
+        assertThrows(NoSuchElementException.class, () -> config.getString("foo"));
     }
 }

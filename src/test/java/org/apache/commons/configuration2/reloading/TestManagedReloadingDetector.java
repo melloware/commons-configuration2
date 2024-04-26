@@ -17,21 +17,20 @@
 
 package org.apache.commons.configuration2.reloading;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test case for the ManagedReloadingDetector class.
- *
  */
 public class TestManagedReloadingDetector {
     /** The instance to be tested. */
     private ManagedReloadingDetector strategy;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         strategy = new ManagedReloadingDetector();
     }
@@ -42,8 +41,8 @@ public class TestManagedReloadingDetector {
     @Test
     public void testRefresh() {
         strategy.refresh();
-        assertTrue("Reloading request not detected", strategy.isReloadingRequired());
-        assertTrue("Reloading state not permanent", strategy.isReloadingRequired());
+        assertTrue(strategy.isReloadingRequired());
+        assertTrue(strategy.isReloadingRequired());
     }
 
     /**
@@ -53,7 +52,7 @@ public class TestManagedReloadingDetector {
     public void testReloadingPerformed() {
         strategy.refresh();
         strategy.reloadingPerformed();
-        assertFalse("Reloading state not reset", strategy.isReloadingRequired());
+        assertFalse(strategy.isReloadingRequired());
     }
 
     /**
@@ -61,6 +60,6 @@ public class TestManagedReloadingDetector {
      */
     @Test
     public void testReloadingRequiredInitial() {
-        assertFalse("Wrong result", strategy.isReloadingRequired());
+        assertFalse(strategy.isReloadingRequired());
     }
 }

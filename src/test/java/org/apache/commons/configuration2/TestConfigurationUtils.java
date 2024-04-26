@@ -17,20 +17,20 @@
 
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import junitx.framework.ListAssert;
 
 import org.apache.commons.configuration2.builder.XMLBuilderParametersImpl;
 import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
@@ -44,20 +44,18 @@ import org.apache.commons.configuration2.tree.DefaultExpressionEngine;
 import org.apache.commons.configuration2.tree.DefaultExpressionEngineSymbols;
 import org.apache.commons.configuration2.tree.ExpressionEngine;
 import org.apache.commons.configuration2.tree.ImmutableNode;
-import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests the ConfigurationUtils class
- *
  */
 public class TestConfigurationUtils {
     /**
      * A test Synchronizer implementation which can be cloned.
      */
-    private static class CloneableSynchronizer extends NonCloneableSynchronizer implements Cloneable {
+    private static final class CloneableSynchronizer extends NonCloneableSynchronizer implements Cloneable {
         /** A flag whether clone() was called. */
         private final boolean cloned;
 
@@ -97,12 +95,12 @@ public class TestConfigurationUtils {
     /** Stores the CCL. */
     private ClassLoader ccl;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         ccl = Thread.currentThread().getContextClassLoader();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         Thread.currentThread().setContextClassLoader(ccl);
     }
@@ -125,20 +123,20 @@ public class TestConfigurationUtils {
         List<Object> expected = new ArrayList<>();
         expected.add("value3");
         expected.add("value1");
-        ListAssert.assertEquals("'key1' property", expected, conf2.getList("key1"));
+        assertEquals(expected, conf2.getList("key1"));
 
         expected = new ArrayList<>();
         expected.add("value4");
         expected.add("value2");
-        ListAssert.assertEquals("'key2' property", expected, conf2.getList("key2"));
+        assertEquals(expected, conf2.getList("key2"));
     }
 
     /**
      * Tests asEventSource() if an exception is expected.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testAsEventSourceNonSupportedEx() {
-        ConfigurationUtils.asEventSource(this, false);
+        assertThrows(ConfigurationRuntimeException.class, () -> ConfigurationUtils.asEventSource(this, false));
     }
 
     /**
@@ -147,7 +145,7 @@ public class TestConfigurationUtils {
     @Test
     public void testAsEventSourceSupported() {
         final XMLConfiguration src = new XMLConfiguration();
-        assertSame("Wrong result", src, ConfigurationUtils.asEventSource(src, true));
+        assertSame(src, ConfigurationUtils.asEventSource(src, true));
     }
 
     /**
@@ -155,11 +153,11 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testAsEventSourceUnsupportedMock() {
-        final EventListener<ConfigurationEvent> cl = EasyMock.createMock(EventListener.class);
-        EasyMock.replay(cl);
+        @SuppressWarnings("unchecked")
+        final EventListener<ConfigurationEvent> cl = mock(EventListener.class);
         final EventSource source = ConfigurationUtils.asEventSource(this, true);
         source.addEventListener(ConfigurationEvent.ANY, cl);
-        assertFalse("Wrong result (1)", source.removeEventListener(ConfigurationEvent.ANY, cl));
+        assertFalse(source.removeEventListener(ConfigurationEvent.ANY, cl));
         source.addEventListener(ConfigurationEvent.ANY, null);
     }
 
@@ -171,17 +169,17 @@ public class TestConfigurationUtils {
         final BaseHierarchicalConfiguration conf = new BaseHierarchicalConfiguration();
         conf.addProperty("test", "yes");
         final BaseHierarchicalConfiguration copy = (BaseHierarchicalConfiguration) ConfigurationUtils.cloneConfiguration(conf);
-        assertNotSame("Same object was returned", conf, copy);
-        assertEquals("Property was not cloned", "yes", copy.getString("test"));
+        assertNotSame(conf, copy);
+        assertEquals("yes", copy.getString("test"));
     }
 
     /**
      * Tests cloning a configuration that does not support this operation. This should cause an exception.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testCloneConfigurationNotSupported() {
         final Configuration myNonCloneableConfig = new NonCloneableConfiguration();
-        ConfigurationUtils.cloneConfiguration(myNonCloneableConfig);
+        assertThrows(ConfigurationRuntimeException.class, () -> ConfigurationUtils.cloneConfiguration(myNonCloneableConfig));
     }
 
     /**
@@ -189,7 +187,7 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testCloneConfigurationNull() {
-        assertNull("Wrong return value", ConfigurationUtils.cloneConfiguration(null));
+        assertNull(ConfigurationUtils.cloneConfiguration(null));
     }
 
     /**
@@ -203,7 +201,7 @@ public class TestConfigurationUtils {
                 throw new ConfigurationRuntimeException();
             }
         };
-        assertSame("Wrong result", params, ConfigurationUtils.cloneIfPossible(params));
+        assertSame(params, ConfigurationUtils.cloneIfPossible(params));
     }
 
     /**
@@ -212,7 +210,7 @@ public class TestConfigurationUtils {
     @Test
     public void testCloneIfPossibleNotSupported() {
         final Long value = 20130116221714L;
-        assertSame("Wrong result", value, ConfigurationUtils.cloneIfPossible(value));
+        assertSame(value, ConfigurationUtils.cloneIfPossible(value));
     }
 
     /**
@@ -220,7 +218,7 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testCloneIfPossibleNull() {
-        assertNull("Wrong result", ConfigurationUtils.cloneIfPossible(null));
+        assertNull(ConfigurationUtils.cloneIfPossible(null));
     }
 
     /**
@@ -232,11 +230,11 @@ public class TestConfigurationUtils {
         params.setPublicID("testID");
         params.setSchemaValidation(true);
         final XMLBuilderParametersImpl clone = (XMLBuilderParametersImpl) ConfigurationUtils.cloneIfPossible(params);
-        assertNotSame("No clone was created", params, clone);
+        assertNotSame(params, clone);
         final Map<String, Object> map = clone.getParameters();
         for (final Map.Entry<String, Object> e : params.getParameters().entrySet()) {
             if (!e.getKey().startsWith("config-")) {
-                assertEquals("Wrong value for field " + e.getKey(), e.getValue(), map.get(e.getKey()));
+                assertEquals(e.getValue(), map.get(e.getKey()), "Wrong value for field " + e.getKey());
             }
         }
     }
@@ -248,15 +246,16 @@ public class TestConfigurationUtils {
     public void testCloneSynchronizerClone() {
         final CloneableSynchronizer sync = new CloneableSynchronizer(false);
         final CloneableSynchronizer sync2 = (CloneableSynchronizer) ConfigurationUtils.cloneSynchronizer(sync);
-        assertTrue("Not cloned", sync2.isCloned());
+        assertTrue(sync2.isCloned());
     }
 
     /**
      * Tests cloneSynchronizer() if the argument cannot be cloned.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testCloneSynchronizerFailed() {
-        ConfigurationUtils.cloneSynchronizer(new NonCloneableSynchronizer());
+        final NonCloneableSynchronizer synchronizer = new NonCloneableSynchronizer();
+        assertThrows(ConfigurationRuntimeException.class, () -> ConfigurationUtils.cloneSynchronizer(synchronizer));
     }
 
     /**
@@ -266,8 +265,8 @@ public class TestConfigurationUtils {
     public void testCloneSynchronizerNewInstance() {
         final SynchronizerTestImpl sync = new SynchronizerTestImpl();
         final SynchronizerTestImpl sync2 = (SynchronizerTestImpl) ConfigurationUtils.cloneSynchronizer(sync);
-        assertNotNull("Clone is null", sync2);
-        assertNotSame("Same instance", sync, sync2);
+        assertNotNull(sync2);
+        assertNotSame(sync, sync2);
     }
 
     /**
@@ -275,15 +274,15 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testCloneSynchronizerNoOp() {
-        assertSame("Wrong result", NoOpSynchronizer.INSTANCE, ConfigurationUtils.cloneSynchronizer(NoOpSynchronizer.INSTANCE));
+        assertSame(NoOpSynchronizer.INSTANCE, ConfigurationUtils.cloneSynchronizer(NoOpSynchronizer.INSTANCE));
     }
 
     /**
      * Tries to clone a null Synchronizer.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCloneSynchronizerNull() {
-        ConfigurationUtils.cloneSynchronizer(null);
+        assertThrows(IllegalArgumentException.class, () -> ConfigurationUtils.cloneSynchronizer(null));
     }
 
     /**
@@ -293,7 +292,7 @@ public class TestConfigurationUtils {
     public void testConvertHierarchicalToHierarchical() {
         final Configuration conf = new BaseHierarchicalConfiguration();
         conf.addProperty("test", "yes");
-        assertSame("Wrong configuration returned", conf, ConfigurationUtils.convertToHierarchical(conf));
+        assertSame(conf, ConfigurationUtils.convertToHierarchical(conf));
     }
 
     /**
@@ -303,8 +302,8 @@ public class TestConfigurationUtils {
     public void testConvertHierarchicalToHierarchicalEngine() {
         final BaseHierarchicalConfiguration hc = new BaseHierarchicalConfiguration();
         final ExpressionEngine engine = new DefaultExpressionEngine(DefaultExpressionEngineSymbols.DEFAULT_SYMBOLS);
-        assertSame("Created new configuration", hc, ConfigurationUtils.convertToHierarchical(hc, engine));
-        assertSame("Engine was not set", engine, hc.getExpressionEngine());
+        assertSame(hc, ConfigurationUtils.convertToHierarchical(hc, engine));
+        assertSame(engine, hc.getExpressionEngine());
     }
 
     /**
@@ -316,8 +315,8 @@ public class TestConfigurationUtils {
         final BaseHierarchicalConfiguration hc = new BaseHierarchicalConfiguration();
         final ExpressionEngine engine = new DefaultExpressionEngine(DefaultExpressionEngineSymbols.DEFAULT_SYMBOLS);
         hc.setExpressionEngine(engine);
-        assertSame("Created new configuration", hc, ConfigurationUtils.convertToHierarchical(hc, null));
-        assertSame("Expression engine was changed", engine, hc.getExpressionEngine());
+        assertSame(hc, ConfigurationUtils.convertToHierarchical(hc, null));
+        assertSame(engine, hc.getExpressionEngine());
     }
 
     /**
@@ -325,7 +324,7 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testConvertNullToHierarchical() {
-        assertNull("Wrong conversion result for null config", ConfigurationUtils.convertToHierarchical(null));
+        assertNull(ConfigurationUtils.convertToHierarchical(null));
     }
 
     /**
@@ -342,7 +341,7 @@ public class TestConfigurationUtils {
         final BaseHierarchicalConfiguration hc = (BaseHierarchicalConfiguration) ConfigurationUtils.convertToHierarchical(conf);
         for (final Iterator<String> it = conf.getKeys(); it.hasNext();) {
             final String key = it.next();
-            assertEquals("Wrong value for key " + key, conf.getProperty(key), hc.getProperty(key));
+            assertEquals(conf.getProperty(key), hc.getProperty(key), "Wrong value for key " + key);
         }
     }
 
@@ -355,9 +354,9 @@ public class TestConfigurationUtils {
         final BaseConfiguration conf = new BaseConfiguration();
         conf.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
         conf.addProperty("test.key", "1\\,2\\,3");
-        assertEquals("Wrong property value", "1,2,3", conf.getString("test.key"));
+        assertEquals("1,2,3", conf.getString("test.key"));
         final HierarchicalConfiguration<?> hc = ConfigurationUtils.convertToHierarchical(conf);
-        assertEquals("Escaped list delimiters not correctly handled", "1,2,3", hc.getString("test.key"));
+        assertEquals("1,2,3", hc.getString("test.key"));
     }
 
     /**
@@ -371,8 +370,8 @@ public class TestConfigurationUtils {
         final DefaultExpressionEngine engine = new DefaultExpressionEngine(
             new DefaultExpressionEngineSymbols.Builder(DefaultExpressionEngineSymbols.DEFAULT_SYMBOLS).setIndexStart("[").setIndexEnd("]").create());
         final HierarchicalConfiguration<?> hc = ConfigurationUtils.convertToHierarchical(conf, engine);
-        assertTrue("Wrong value for test(a)", hc.getBoolean("test(a)"));
-        assertFalse("Wrong value for test(b)", hc.getBoolean("test(b)"));
+        assertTrue(hc.getBoolean("test(a)"));
+        assertFalse(hc.getBoolean("test(b)"));
     }
 
     /**
@@ -385,9 +384,9 @@ public class TestConfigurationUtils {
         config.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
         config.addProperty("test", "1,2,3");
         final HierarchicalConfiguration<?> hc = ConfigurationUtils.convertToHierarchical(config);
-        assertEquals("Wrong value 1", 1, hc.getInt("test(0)"));
-        assertEquals("Wrong value 2", 2, hc.getInt("test(1)"));
-        assertEquals("Wrong value 3", 3, hc.getInt("test(2)"));
+        assertEquals(1, hc.getInt("test(0)"));
+        assertEquals(2, hc.getInt("test(1)"));
+        assertEquals(3, hc.getInt("test(2)"));
     }
 
     /**
@@ -403,7 +402,7 @@ public class TestConfigurationUtils {
         final HierarchicalConfiguration<ImmutableNode> hc = (HierarchicalConfiguration<ImmutableNode>) ConfigurationUtils.convertToHierarchical(config);
         final ImmutableNode rootNode = hc.getNodeModel().getNodeHandler().getRootNode();
         final ImmutableNode nodeX = rootNode.getChildren().get(0);
-        assertEquals("Wrong number of children of x", 1, nodeX.getChildren().size());
+        assertEquals(1, nodeX.getChildren().size());
     }
 
     @Test
@@ -421,14 +420,14 @@ public class TestConfigurationUtils {
         // copy the source configuration into the target configuration
         ConfigurationUtils.copy(conf1, conf2);
 
-        assertEquals("'key1' property", "value1", conf2.getProperty("key1"));
-        assertEquals("'key2' property", "value2", conf2.getProperty("key2"));
+        assertEquals("value1", conf2.getProperty("key1"));
+        assertEquals("value2", conf2.getProperty("key2"));
     }
 
     /**
      * Tests whether runtime exceptions can be enabled.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testEnableRuntimeExceptions() {
         final PropertiesConfiguration config = new PropertiesConfiguration() {
             @Override
@@ -439,26 +438,25 @@ public class TestConfigurationUtils {
         };
         config.clearErrorListeners();
         ConfigurationUtils.enableRuntimeExceptions(config);
-        config.addProperty("test", "testValue");
+        assertThrows(ConfigurationRuntimeException.class, () -> config.addProperty("test", "testValue"));
     }
 
     /**
      * Tries to enable runtime exceptions for a configuration that does not inherit from EventSource. This should cause an
      * exception.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEnableRuntimeExceptionsInvalid() {
-        final Configuration c = EasyMock.createMock(Configuration.class);
-        EasyMock.replay(c);
-        ConfigurationUtils.enableRuntimeExceptions(c);
+        final Configuration c = mock(Configuration.class);
+        assertThrows(IllegalArgumentException.class, () -> ConfigurationUtils.enableRuntimeExceptions(c));
     }
 
     /**
      * Tries to enable runtime exceptions for a null configuration. This should cause an exception.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEnableRuntimeExceptionsNull() {
-        ConfigurationUtils.enableRuntimeExceptions(null);
+        assertThrows(IllegalArgumentException.class, () -> ConfigurationUtils.enableRuntimeExceptions(null));
     }
 
     /**
@@ -472,7 +470,7 @@ public class TestConfigurationUtils {
                 throw new ClassNotFoundException(name);
             }
         });
-        assertEquals("Wrong class", CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
+        assertEquals(CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
     }
 
     /**
@@ -481,7 +479,7 @@ public class TestConfigurationUtils {
     @Test
     public void testLoadClassCCLNull() throws ClassNotFoundException {
         Thread.currentThread().setContextClassLoader(null);
-        assertEquals("Wrong class", CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
+        assertEquals(CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
     }
 
     /**
@@ -490,7 +488,7 @@ public class TestConfigurationUtils {
     @Test
     public void testLoadClassFromCCL() throws ClassNotFoundException {
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-        assertEquals("Wrong class", CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
+        assertEquals(CLS_NAME, ConfigurationUtils.loadClass(CLS_NAME).getName());
     }
 
     /**
@@ -498,23 +496,23 @@ public class TestConfigurationUtils {
      */
     @Test
     public void testLoadClassNoExFound() {
-        assertEquals("Wrong class", CLS_NAME, ConfigurationUtils.loadClassNoEx(CLS_NAME).getName());
+        assertEquals(CLS_NAME, ConfigurationUtils.loadClassNoEx(CLS_NAME).getName());
     }
 
     /**
      * Tests loadClassNoEx() if the class cannot be resolved.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testLoadClassNoExNotFound() {
-        ConfigurationUtils.loadClassNoEx("a non existing class!");
+        assertThrows(ConfigurationRuntimeException.class, () -> ConfigurationUtils.loadClassNoEx("a non existing class!"));
     }
 
     /**
      * Tests the behavior of loadClass() for a non-existing class.
      */
-    @Test(expected = ClassNotFoundException.class)
-    public void testLoadClassNotFound() throws ClassNotFoundException {
-        ConfigurationUtils.loadClass("a non existing class!");
+    @Test
+    public void testLoadClassNotFound() {
+        assertThrows(ClassNotFoundException.class, () -> ConfigurationUtils.loadClass("a non existing class!"));
     }
 
     @Test
@@ -522,18 +520,18 @@ public class TestConfigurationUtils {
         final Configuration config = new BaseConfiguration();
         final String lineSeparator = System.lineSeparator();
 
-        assertEquals("String representation of an empty configuration", "", ConfigurationUtils.toString(config));
+        assertEquals("", ConfigurationUtils.toString(config));
 
         config.setProperty("one", "1");
-        assertEquals("String representation of a configuration", "one=1", ConfigurationUtils.toString(config));
+        assertEquals("one=1", ConfigurationUtils.toString(config));
 
         config.setProperty("two", "2");
-        assertEquals("String representation of a configuration", "one=1" + lineSeparator + "two=2", ConfigurationUtils.toString(config));
+        assertEquals("one=1" + lineSeparator + "two=2", ConfigurationUtils.toString(config));
 
         config.clearProperty("one");
-        assertEquals("String representation of a configuration", "two=2", ConfigurationUtils.toString(config));
+        assertEquals("two=2", ConfigurationUtils.toString(config));
 
         config.setProperty("one", "1");
-        assertEquals("String representation of a configuration", "two=2" + lineSeparator + "one=1", ConfigurationUtils.toString(config));
+        assertEquals("two=2" + lineSeparator + "one=1", ConfigurationUtils.toString(config));
     }
 }

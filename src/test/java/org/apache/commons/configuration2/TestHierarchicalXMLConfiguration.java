@@ -1,5 +1,3 @@
-package org.apache.commons.configuration2;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,24 +15,27 @@ package org.apache.commons.configuration2;
  * limitations under the License.
  */
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+package org.apache.commons.configuration2;
+
+import static org.apache.commons.configuration2.TempDirUtils.newFile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.util.Collection;
 import java.util.Iterator;
 
 import org.apache.commons.configuration2.io.FileHandler;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Test class for XMLConfiguration. In addition to TestXMLConfiguration this class especially tests the hierarchical
  * nature of this class and structured data access.
- *
  */
 public class TestHierarchicalXMLConfiguration {
     /** Test resources directory. */
@@ -58,9 +59,9 @@ public class TestHierarchicalXMLConfiguration {
     /** File name for saving. */
     private static final String TEST_SAVENAME = "testhierarchicalsave.xml";
 
-    /** Helper object for creating temporary files. */
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    /** A folder for temporary files. */
+    @TempDir
+    public File tempFolder;
 
     /** Instance config used for tests. */
     private XMLConfiguration config;
@@ -74,20 +75,20 @@ public class TestHierarchicalXMLConfiguration {
         assertEquals("documents", config.getProperty("tables.table(1).name"));
 
         Object prop = config.getProperty("tables.table.fields.field.name");
-        assertTrue(prop instanceof Collection);
-        assertEquals(10, ((Collection<?>) prop).size());
+        Collection<?> collection = assertInstanceOf(Collection.class, prop);
+        assertEquals(10, collection.size());
 
         prop = config.getProperty("tables.table(0).fields.field.type");
-        assertTrue(prop instanceof Collection);
-        assertEquals(5, ((Collection<?>) prop).size());
+        collection = assertInstanceOf(Collection.class, prop);
+        assertEquals(5, collection.size());
 
         prop = config.getProperty("tables.table(1).fields.field.type");
-        assertTrue(prop instanceof Collection);
-        assertEquals(5, ((Collection<?>) prop).size());
+        collection = assertInstanceOf(Collection.class, prop);
+        assertEquals(5, collection.size());
     }
 
     /** Fixture setup. */
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         config = new XMLConfiguration();
     }
@@ -141,7 +142,7 @@ public class TestHierarchicalXMLConfiguration {
         final FileHandler handler = new FileHandler(config);
         handler.setFileName(TEST_FILE3);
         handler.load();
-        final File saveFile = folder.newFile(TEST_SAVENAME);
+        final File saveFile = newFile(TEST_SAVENAME, tempFolder);
         handler.save(saveFile);
 
         config = new XMLConfiguration();
@@ -176,7 +177,7 @@ public class TestHierarchicalXMLConfiguration {
         config.addProperty("[@topattr]", "available");
         config.addProperty("[@topattr_other]", "successfull");
 
-        final File saveFile = folder.newFile(TEST_SAVENAME);
+        final File saveFile = newFile(TEST_SAVENAME, tempFolder);
         handler.save(saveFile);
         config = new XMLConfiguration();
         handler = new FileHandler(config);
@@ -215,7 +216,7 @@ public class TestHierarchicalXMLConfiguration {
         config.addProperty("tables.table(1).fields.field(1)[@null]", "true");
 
         config.setRootElementName("myconfig");
-        final File saveFile = folder.newFile(TEST_SAVENAME);
+        final File saveFile = newFile(TEST_SAVENAME, tempFolder);
         FileHandler handler = new FileHandler(config);
         handler.setFile(saveFile);
         handler.save();
@@ -236,13 +237,13 @@ public class TestHierarchicalXMLConfiguration {
     /**
      * Tests that it is not allowed to change the root element name when the configuration was loaded from a file.
      */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSetRootElementNameWhenLoadedFromFile() throws Exception {
         final FileHandler handler = new FileHandler(config);
         handler.setFile(new File(TEST_FILE3));
         handler.load();
         assertEquals("testconfig", config.getRootElementName());
-        config.setRootElementName("anotherRootElement");
+        assertThrows(UnsupportedOperationException.class, () -> config.setRootElementName("anotherRootElement"));
     }
 
     /**
@@ -258,19 +259,19 @@ public class TestHierarchicalXMLConfiguration {
         handler.load(new File(TEST_FILE2).getAbsoluteFile().toURI().toURL());
 
         // Validate comment in element ignored
-        assertEquals("Comment in element must not change element value.", "Case1Text", config.getString("case1"));
+        assertEquals("Case1Text", config.getString("case1"));
 
         // Validate sibling comment ignored
-        assertEquals("Comment as sibling must not change element value.", "Case2Text", config.getString("case2.child"));
+        assertEquals("Case2Text", config.getString("case2.child"));
 
         // Validate comment ignored, CDATA processed
-        assertEquals("Comment and use of CDATA must not change element value.", "Case3Text", config.getString("case3"));
+        assertEquals("Case3Text", config.getString("case3"));
 
         // Validate comment and processing instruction ignored
-        assertEquals("Comment and use of PI must not change element value.", "Case4Text", config.getString("case4"));
+        assertEquals("Case4Text", config.getString("case4"));
 
         // Validate comment ignored in parent attribute
-        assertEquals("Comment must not change attribute node value.", "Case5Text", config.getString("case5[@attr]"));
+        assertEquals("Case5Text", config.getString("case5[@attr]"));
 
         // Validate non-text nodes haven't snuck in as keys
         final Iterator<String> iter = config.getKeys();
@@ -279,6 +280,6 @@ public class TestHierarchicalXMLConfiguration {
             iter.next();
             count++;
         }
-        assertEquals("Config must contain only " + KEY_COUNT + " keys.", KEY_COUNT, count);
+        assertEquals(KEY_COUNT, count);
     }
 }

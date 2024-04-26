@@ -20,6 +20,7 @@ package org.apache.commons.configuration2.web;
 import java.applet.Applet;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * A configuration wrapper to read applet parameters. This configuration is read only, adding or removing a property
@@ -28,6 +29,7 @@ import java.util.Iterator;
  * @since 1.1
  */
 public class AppletConfiguration extends BaseWebConfiguration {
+
     /** Stores the wrapped applet. */
     protected Applet applet;
 
@@ -37,22 +39,23 @@ public class AppletConfiguration extends BaseWebConfiguration {
      * @param applet the applet
      */
     public AppletConfiguration(final Applet applet) {
-        this.applet = applet;
-    }
-
-    @Override
-    protected Object getPropertyInternal(final String key) {
-        return handleDelimiters(applet.getParameter(key));
+        this.applet = Objects.requireNonNull(applet, "applet");
     }
 
     @Override
     protected Iterator<String> getKeysInternal() {
         final String[][] paramsInfo = applet.getParameterInfo();
         final String[] keys = new String[paramsInfo != null ? paramsInfo.length : 0];
-        for (int i = 0; i < keys.length; i++) {
-            keys[i] = paramsInfo[i][0];
+        if (paramsInfo != null) {
+            for (int i = 0; i < keys.length; i++) {
+                keys[i] = paramsInfo[i][0];
+            }
         }
-
         return Arrays.asList(keys).iterator();
+    }
+
+    @Override
+    protected Object getPropertyInternal(final String key) {
+        return handleDelimiters(applet.getParameter(key));
     }
 }

@@ -16,21 +16,26 @@
  */
 package org.apache.commons.configuration2.builder.combined;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,14 +86,12 @@ import org.apache.commons.configuration2.tree.DefaultExpressionEngine;
 import org.apache.commons.configuration2.tree.DefaultExpressionEngineSymbols;
 import org.apache.commons.configuration2.tree.ImmutableNode;
 import org.apache.commons.configuration2.tree.xpath.XPathExpressionEngine;
-import org.easymock.EasyMock;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code CombinedConfigurationBuilder}.
- *
  */
 public class TestCombinedConfigurationBuilder {
     /**
@@ -124,7 +127,7 @@ public class TestCombinedConfigurationBuilder {
     /**
      * A test builder class which always returns the same configuration.
      */
-    private static class ConstantConfigurationBuilder extends BasicConfigurationBuilder<BaseHierarchicalConfiguration> {
+    private static final class ConstantConfigurationBuilder extends BasicConfigurationBuilder<BaseHierarchicalConfiguration> {
         private final BaseHierarchicalConfiguration configuration;
 
         public ConstantConfigurationBuilder(final BaseHierarchicalConfiguration conf) {
@@ -192,7 +195,7 @@ public class TestCombinedConfigurationBuilder {
     /**
      * A thread class for testing concurrent read access to a newly created configuration.
      */
-    private static class ReadThread extends Thread {
+    private static final class ReadThread extends Thread {
         /** The configuration to access. */
         private final CombinedConfiguration config;
 
@@ -226,7 +229,7 @@ public class TestCombinedConfigurationBuilder {
             } catch (final InterruptedException iex) {
                 fail("Waiting was interrupted: " + iex);
             }
-            assertEquals("Wrong value read", Boolean.TRUE, value);
+            assertEquals(Boolean.TRUE, value);
         }
     }
 
@@ -270,8 +273,8 @@ public class TestCombinedConfigurationBuilder {
      */
     private static void checkCombinedConfigAttrs(final CombinedConfiguration cc) {
         final ListDelimiterHandler handler = cc.getListDelimiterHandler();
-        assertTrue("Wrong delimiter handler: " + handler, handler instanceof DefaultListDelimiterHandler);
-        assertEquals("Wrong list delimiter character", ',', ((DefaultListDelimiterHandler) handler).getDelimiter());
+        assertInstanceOf(DefaultListDelimiterHandler.class, handler);
+        assertEquals(',', ((DefaultListDelimiterHandler) handler).getDelimiter());
     }
 
     /**
@@ -339,14 +342,14 @@ public class TestCombinedConfigurationBuilder {
     private CombinedConfiguration checkConfiguration() throws ConfigurationException {
         final CombinedConfiguration compositeConfiguration = builder.getConfiguration();
 
-        assertEquals("Number of configurations", 3, compositeConfiguration.getNumberOfConfigurations());
+        assertEquals(3, compositeConfiguration.getNumberOfConfigurations());
         assertEquals(PropertiesConfiguration.class, compositeConfiguration.getConfiguration(0).getClass());
         assertEquals(XMLPropertiesConfiguration.class, compositeConfiguration.getConfiguration(1).getClass());
         assertEquals(XMLConfiguration.class, compositeConfiguration.getConfiguration(2).getClass());
 
         // check the first configuration
         final PropertiesConfiguration pc = (PropertiesConfiguration) compositeConfiguration.getConfiguration(0);
-        assertNotNull("No properties configuration", pc);
+        assertNotNull(pc);
 
         // check some properties
         checkProperties(compositeConfiguration);
@@ -364,8 +367,7 @@ public class TestCombinedConfigurationBuilder {
         builder.getConfiguration();
         final FileBasedConfigurationBuilder<? extends Configuration> xmlBuilder = (FileBasedConfigurationBuilder<? extends Configuration>) builder
             .getNamedBuilder("xml");
-        assertTrue("Wrong file system: " + xmlBuilder.getFileHandler().getFileSystem(),
-            xmlBuilder.getFileHandler().getFileSystem() instanceof FileSystemTestImpl);
+        assertInstanceOf(FileSystemTestImpl.class, xmlBuilder.getFileHandler().getFileSystem());
     }
 
     /**
@@ -377,7 +379,7 @@ public class TestCombinedConfigurationBuilder {
      */
     private void checkMultiFile(final String key, final CombinedConfiguration config, final int rows) {
         switchToMultiFile(key);
-        assertEquals("Wrong property value", rows, config.getInt("rowsPerPage"));
+        assertEquals(rows, config.getInt("rowsPerPage"));
     }
 
     /**
@@ -386,9 +388,9 @@ public class TestCombinedConfigurationBuilder {
      * @param compositeConfiguration the configuration to check
      */
     private void checkProperties(final Configuration compositeConfiguration) {
-        assertTrue("Make sure we have loaded our key", compositeConfiguration.getBoolean("test.boolean"));
+        assertTrue(compositeConfiguration.getBoolean("test.boolean"));
         assertEquals("I'm complex!", compositeConfiguration.getProperty("element2.subelement.subsubelement"));
-        assertEquals("property in the XMLPropertiesConfiguration", "value1", compositeConfiguration.getProperty("key1"));
+        assertEquals("value1", compositeConfiguration.getProperty("key1"));
     }
 
     /**
@@ -402,7 +404,7 @@ public class TestCombinedConfigurationBuilder {
         final File testFile = ConfigurationAssert.getTestFile(fileName);
         builder.configure(createParameters().setFile(testFile));
         final CombinedConfiguration config = builder.getConfiguration();
-        assertTrue("Incorrect result configuration", config instanceof DynamicCombinedConfiguration);
+        assertInstanceOf(DynamicCombinedConfiguration.class, config);
         return config;
     }
 
@@ -431,7 +433,7 @@ public class TestCombinedConfigurationBuilder {
         return defBuilder;
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         System.setProperty("java.naming.factory.initial", "org.apache.commons.configuration2.MockInitialContextFactory");
         System.setProperty("test_file_xml", TEST_SUB_XML);
@@ -440,7 +442,7 @@ public class TestCombinedConfigurationBuilder {
         builder = new CombinedConfigurationBuilder();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         System.getProperties().remove(MULTI_FILE_PROPERTY);
     }
@@ -456,7 +458,7 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(
             new CombinedBuilderParametersImpl().setBasePath(deepDir.getAbsolutePath()).setDefinitionBuilder(new ConstantConfigurationBuilder(defConfig)));
         final CombinedConfiguration config = builder.getConfiguration();
-        assertEquals("Wrong property value", "somevalue", config.getString("somekey"));
+        assertEquals("somevalue", config.getString("somekey"));
     }
 
     /**
@@ -467,9 +469,7 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(createParameters().setFile(TEST_FILE));
         builder.getConfiguration();
         final Set<String> names = builder.builderNames();
-        final List<String> expected = Arrays.asList("props", "xml");
-        assertEquals("Wrong number of named builders", expected.size(), names.size());
-        assertTrue("Wrong builder names: " + names, names.containsAll(expected));
+        assertEquals(new HashSet<>(Arrays.asList("props", "xml")), names);
     }
 
     /**
@@ -477,20 +477,20 @@ public class TestCombinedConfigurationBuilder {
      */
     @Test
     public void testBuilderNamesBeforeConfigurationAccess() {
-        assertTrue("Got builders (1)", builder.builderNames().isEmpty());
+        assertEquals(Collections.emptySet(), builder.builderNames());
         builder.configure(createParameters().setFile(TEST_FILE));
-        assertTrue("Got builders (2)", builder.builderNames().isEmpty());
+        assertEquals(Collections.emptySet(), builder.builderNames());
     }
 
     /**
      * Tests that the collection with builder names cannot be manipulated.
      */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testBuilderNamesManipulate() throws ConfigurationException {
         builder.configure(createParameters().setFile(TEST_FILE));
         builder.getConfiguration();
         final Set<String> names = builder.builderNames();
-        names.add(BUILDER_NAME);
+        assertThrows(UnsupportedOperationException.class, () -> names.add(BUILDER_NAME));
     }
 
     /**
@@ -504,7 +504,7 @@ public class TestCombinedConfigurationBuilder {
         builder.resetResult();
         builder.getConfiguration();
         final Collection<ConfigurationBuilder<? extends Configuration>> childBuilders = builder.getChildBuilders();
-        assertEquals("Wrong number of child builders", 3, childBuilders.size());
+        assertEquals(3, childBuilders.size());
     }
 
     /**
@@ -529,13 +529,11 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(createParameters().setFile(initFile));
         final CombinedConfiguration cc = builder.getConfiguration();
         Set<String> listNodes = cc.getNodeCombiner().getListNodes();
-        assertEquals("Wrong number of list nodes", 2, listNodes.size());
-        assertTrue("table node not a list node", listNodes.contains("table"));
-        assertTrue("list node not a list node", listNodes.contains("list"));
+        assertEquals(new HashSet<>(Arrays.asList("table", "list")), listNodes);
 
         final CombinedConfiguration cca = (CombinedConfiguration) cc.getConfiguration(CombinedConfigurationBuilder.ADDITIONAL_NAME);
         listNodes = cca.getNodeCombiner().getListNodes();
-        assertTrue("Found list nodes for additional combiner", listNodes.isEmpty());
+        assertEquals(Collections.emptySet(), listNodes);
     }
 
     /**
@@ -545,7 +543,7 @@ public class TestCombinedConfigurationBuilder {
     public void testCombinedConfigurationNoAdditional() throws ConfigurationException {
         builder.configure(createParameters().setFile(TEST_FILE));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertNull("Additional configuration was found", cc.getConfiguration(CombinedConfigurationBuilder.ADDITIONAL_NAME));
+        assertNull(cc.getConfiguration(CombinedConfigurationBuilder.ADDITIONAL_NAME));
     }
 
     /**
@@ -578,7 +576,7 @@ public class TestCombinedConfigurationBuilder {
         defConfig.addProperty("override.configuration[@fileName]", TEST_FILE.getAbsolutePath());
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilder(new ConstantConfigurationBuilder(defConfig)));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertEquals("Wrong number of configurations", 1, cc.getNumberOfConfigurations());
+        assertEquals(1, cc.getNumberOfConfigurations());
         checkProperties(cc);
     }
 
@@ -593,7 +591,7 @@ public class TestCombinedConfigurationBuilder {
         builder.getConfiguration();
         final CombinedBuilderParametersImpl params = new CombinedBuilderParametersImpl();
         builder.initChildBuilderParameters(params);
-        assertEquals("Base path not set", basePath, params.getBasePath());
+        assertEquals(basePath, params.getBasePath());
     }
 
     /**
@@ -604,14 +602,14 @@ public class TestCombinedConfigurationBuilder {
     public void testConfigurationBuilderProviderInheritBasicProperties() throws ConfigurationException {
         final File testFile = ConfigurationAssert.getTestFile("testCCCombinedChildBuilder.xml");
         final ListDelimiterHandler listHandler = new DefaultListDelimiterHandler('*');
-        final ConfigurationDecoder decoder = EasyMock.createMock(ConfigurationDecoder.class);
+        final ConfigurationDecoder decoder = mock(ConfigurationDecoder.class);
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilderParameters(new XMLBuilderParametersImpl().setFile(testFile))
             .setListDelimiterHandler(listHandler).setConfigurationDecoder(decoder));
         final CombinedConfiguration cc = builder.getConfiguration();
         final CombinedConfiguration cc2 = (CombinedConfiguration) cc.getConfiguration("subcc");
-        assertFalse("Wrong exception flag", cc2.isThrowExceptionOnMissing());
-        assertEquals("Wrong list delimiter handler", listHandler, cc2.getListDelimiterHandler());
-        assertEquals("Wrong decoder", decoder, cc2.getConfigurationDecoder());
+        assertFalse(cc2.isThrowExceptionOnMissing());
+        assertEquals(listHandler, cc2.getListDelimiterHandler());
+        assertEquals(decoder, cc2.getConfigurationDecoder());
     }
 
     /**
@@ -623,7 +621,7 @@ public class TestCombinedConfigurationBuilder {
         builder.getConfiguration();
         final CombinedBuilderParametersImpl ccparams = new CombinedBuilderParametersImpl();
         builder.initChildBuilderParameters(ccparams);
-        assertNotNull("Custom provider not found", ccparams.providerForTag("test"));
+        assertNotNull(ccparams.providerForTag("test"));
     }
 
     /**
@@ -631,9 +629,11 @@ public class TestCombinedConfigurationBuilder {
      */
     @Test
     public void testConfigurationBuilderProviderInheritEventListeners() throws ConfigurationException {
-        final EventListener<Event> l1 = EasyMock.createNiceMock(EventListener.class);
-        final EventListener<ConfigurationEvent> l2 = EasyMock.createNiceMock(EventListener.class);
-        EasyMock.replay(l1, l2);
+        @SuppressWarnings("unchecked")
+        final EventListener<Event> l1 = mock(EventListener.class);
+        @SuppressWarnings("unchecked")
+        final EventListener<ConfigurationEvent> l2 = mock(EventListener.class);
+
         final File testFile = ConfigurationAssert.getTestFile("testCCCombinedChildBuilder.xml");
         builder.configure(new XMLBuilderParametersImpl().setFile(testFile));
         builder.addEventListener(Event.ANY, l1);
@@ -641,11 +641,11 @@ public class TestCombinedConfigurationBuilder {
         final CombinedConfiguration cc = builder.getConfiguration();
         final CombinedConfiguration cc2 = (CombinedConfiguration) cc.getConfiguration("subcc");
         final Collection<EventListener<? super ConfigurationEvent>> listeners = cc2.getEventListeners(ConfigurationEvent.ANY);
-        assertTrue("Listener 1 not found", listeners.contains(l1));
-        assertTrue("Listener 2 not found", listeners.contains(l2));
+        assertTrue(listeners.contains(l1));
+        assertTrue(listeners.contains(l2));
         final Collection<EventListener<? super Event>> eventListeners = cc2.getEventListeners(Event.ANY);
-        assertEquals("Wrong number of event listeners", 1, eventListeners.size());
-        assertTrue("Wrong listener", eventListeners.contains(l1));
+        assertEquals(1, eventListeners.size());
+        assertTrue(eventListeners.contains(l1));
     }
 
     /**
@@ -656,14 +656,14 @@ public class TestCombinedConfigurationBuilder {
         final HierarchicalConfiguration<ImmutableNode> config = new BaseHierarchicalConfiguration();
         config.addProperty("header.entity-resolver[@config-class]", EntityResolverWithPropertiesTestImpl.class.getName());
         final XMLBuilderParametersImpl xmlParams = new XMLBuilderParametersImpl();
-        final FileSystem fs = EasyMock.createMock(FileSystem.class);
+        final FileSystem fs = mock(FileSystem.class);
         final String baseDir = ConfigurationAssert.OUT_DIR_NAME;
         xmlParams.setBasePath(baseDir);
         xmlParams.setFileSystem(fs);
         builder.configureEntityResolver(config, xmlParams);
         final EntityResolverWithPropertiesTestImpl resolver = (EntityResolverWithPropertiesTestImpl) xmlParams.getEntityResolver();
-        assertSame("File system not set", fs, resolver.getFileSystem());
-        assertSame("Base directory not set", baseDir, resolver.getBaseDir());
+        assertSame(fs, resolver.getFileSystem());
+        assertSame(baseDir, resolver.getBaseDir());
     }
 
     /**
@@ -672,7 +672,7 @@ public class TestCombinedConfigurationBuilder {
     @Test
     public void testConfigureResult() {
         final CombinedConfigurationBuilder configuredBuilder = builder.configure(createParameters().setFile(TEST_FILE));
-        assertSame("Wrong instance returned", builder, configuredBuilder);
+        assertSame(builder, configuredBuilder);
     }
 
     /**
@@ -689,8 +689,8 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilder(createDefinitionBuilder(createDefinitionConfig(tagName, attrs)))
             .registerProvider(tagName, decl -> new ConstantConfigurationBuilder(dataConf)));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertEquals("Configuration not added", dataConf, cc.getConfiguration(BUILDER_NAME));
-        assertEquals("Property not set", Boolean.TRUE, cc.getProperty("tests." + tagName));
+        assertEquals(dataConf, cc.getConfiguration(BUILDER_NAME));
+        assertEquals(Boolean.TRUE, cc.getProperty("tests." + tagName));
     }
 
     /**
@@ -703,7 +703,7 @@ public class TestCombinedConfigurationBuilder {
         final CombinedConfiguration cc = builder.getConfiguration();
         final XMLConfiguration xmlConf = (XMLConfiguration) cc.getConfiguration("xml");
         final EntityResolverWithPropertiesTestImpl resolver = (EntityResolverWithPropertiesTestImpl) xmlConf.getEntityResolver();
-        assertFalse("No lookups", resolver.getInterpolator().getLookups().isEmpty());
+        assertFalse(resolver.getInterpolator().getLookups().isEmpty());
     }
 
     /**
@@ -730,9 +730,9 @@ public class TestCombinedConfigurationBuilder {
         final File testFile = ConfigurationAssert.getTestFile("testCCLookup.xml");
         builder.configure(createParameters().setFile(testFile));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertTrue("Lookup not registered in CC", cc.getInterpolator().getLookups().containsKey("test"));
+        assertTrue(cc.getInterpolator().getLookups().containsKey("test"));
         final Configuration xmlConf = cc.getConfiguration("xml");
-        assertTrue("Lookup not registered in sub config", xmlConf.getInterpolator().getLookups().containsKey("test"));
+        assertTrue(xmlConf.getInterpolator().getLookups().containsKey("test"));
     }
 
     /**
@@ -745,9 +745,9 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilderParameters(new XMLBuilderParametersImpl().setFile(testFile))
             .setListDelimiterHandler(listHandler).setThrowExceptionOnMissing(false));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertTrue("Wrong configuration class: " + cc.getClass(), cc instanceof CombinedConfigurationTestImpl);
-        assertTrue("Wrong exception flag", cc.isThrowExceptionOnMissing());
-        assertEquals("Wrong list delimiter handler", listHandler, cc.getListDelimiterHandler());
+        assertInstanceOf(CombinedConfigurationTestImpl.class, cc);
+        assertTrue(cc.isThrowExceptionOnMissing());
+        assertEquals(listHandler, cc.getListDelimiterHandler());
     }
 
     /**
@@ -763,7 +763,7 @@ public class TestCombinedConfigurationBuilder {
         final XMLBuilderParametersImpl xmlParams = new XMLBuilderParametersImpl();
         builder.initChildBuilderParameters(xmlParams);
         final File basePathFile = FileLocatorUtils.fileFromURL(new URL(xmlParams.getFileHandler().getBasePath()));
-        assertEquals("Wrong base path", ConfigurationAssert.getTestFile(testFile).getAbsoluteFile(), basePathFile);
+        assertEquals(ConfigurationAssert.getTestFile(testFile).getAbsoluteFile(), basePathFile);
     }
 
     /**
@@ -777,7 +777,7 @@ public class TestCombinedConfigurationBuilder {
         builder.getConfiguration();
         final XMLBuilderParametersImpl xmlParams = new XMLBuilderParametersImpl();
         builder.initChildBuilderParameters(xmlParams);
-        assertEquals("Base path not set", basePath, xmlParams.getFileHandler().getBasePath());
+        assertEquals(basePath, xmlParams.getFileHandler().getBasePath());
     }
 
     /**
@@ -788,7 +788,7 @@ public class TestCombinedConfigurationBuilder {
         final File envFile = ConfigurationAssert.getTestFile("testCCEnvProperties.xml");
         builder.configure(createParameters().setFile(envFile));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertFalse("Configuration is empty", cc.isEmpty());
+        assertFalse(cc.isEmpty());
 
         // The environment may contain settings with values that
         // are altered by interpolation. Disable this for direct access
@@ -797,7 +797,7 @@ public class TestCombinedConfigurationBuilder {
 
         // Test the environment is available through the configuration
         for (final Map.Entry<String, String> e : System.getenv().entrySet()) {
-            assertEquals("Wrong value for property: " + e.getKey(), e.getValue(), cc.getString(e.getKey()));
+            assertEquals(e.getValue(), cc.getString(e.getKey()), "Wrong value for property: " + e.getKey());
         }
     }
 
@@ -809,7 +809,7 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(createParameters().setFile(TEST_FILE));
         builder.getConfiguration();
         final Collection<ConfigurationBuilder<? extends Configuration>> childBuilders = builder.getChildBuilders();
-        assertEquals("Wrong number of child builders", 3, childBuilders.size());
+        assertEquals(3, childBuilders.size());
     }
 
     /**
@@ -820,27 +820,27 @@ public class TestCombinedConfigurationBuilder {
         builder.configure(createParameters().setFile(TEST_FILE));
         builder.getConfiguration();
         final ConfigurationBuilder<? extends Configuration> propBuilder = builder.getNamedBuilder("props");
-        assertTrue("Wrong builder class", propBuilder instanceof FileBasedConfigurationBuilder);
-        assertTrue("Wrong sub configuration", propBuilder.getConfiguration() instanceof PropertiesConfiguration);
+        assertInstanceOf(FileBasedConfigurationBuilder.class, propBuilder);
+        assertInstanceOf(PropertiesConfiguration.class, propBuilder.getConfiguration());
     }
 
     /**
      * Tries to query a named builder before the result configuration has been created.
      */
-    @Test(expected = ConfigurationException.class)
-    public void testGetNamedBuilderBeforeConfigurationAccess() throws ConfigurationException {
+    @Test
+    public void testGetNamedBuilderBeforeConfigurationAccess() {
         builder.configure(createParameters().setFile(TEST_FILE));
-        builder.getNamedBuilder("nonExistingBuilder");
+        assertThrows(ConfigurationException.class, () -> builder.getNamedBuilder("nonExistingBuilder"));
     }
 
     /**
      * Tries to query a non-existing builder by name.
      */
-    @Test(expected = ConfigurationException.class)
+    @Test
     public void testGetNamedBuilderUnknown() throws ConfigurationException {
         builder.configure(createParameters().setFile(TEST_FILE));
         builder.getConfiguration();
-        builder.getNamedBuilder("nonExistingBuilder");
+        assertThrows(ConfigurationException.class, () -> builder.getNamedBuilder("nonExistingBuilder"));
     }
 
     /**
@@ -854,12 +854,12 @@ public class TestCombinedConfigurationBuilder {
         final CombinedConfiguration config = builder.getConfiguration();
 
         List<String> list = config.getList(String.class, "test/mixed/array");
-        assertTrue("Wrong number of elements in list", list.size() > 2);
+        assertTrue(list.size() > 2);
         final String[] stringArray = config.getStringArray("test/mixed/array");
-        assertTrue("Wrong number of elements in array", stringArray.length > 2);
+        assertTrue(stringArray.length > 2);
         final XMLConfiguration xmlConfig = (XMLConfiguration) config.getConfiguration("xml");
         list = xmlConfig.getList(String.class, "split/list1");
-        assertEquals("Wrong number of elements in XML list", 3, list.size());
+        assertEquals(3, list.size());
     }
 
     /**
@@ -870,7 +870,7 @@ public class TestCombinedConfigurationBuilder {
         final File multiFile = ConfigurationAssert.getTestFile("testDigesterConfiguration3.xml");
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilderParameters(createParameters().setFile(multiFile)));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertEquals("Property from ini file not found", "yes", cc.getString("testini.loaded"));
+        assertEquals("yes", cc.getString("testini.loaded"));
     }
 
     /**
@@ -889,14 +889,14 @@ public class TestCombinedConfigurationBuilder {
         builder.getConfiguration();
         final XMLBuilderParametersImpl params = new XMLBuilderParametersImpl();
         builder.initChildBuilderParameters(params);
-        assertTrue("Wrong expression engine", params.getParameters().get("expressionEngine") instanceof XPathExpressionEngine);
-        assertEquals("Validating flag not set", Boolean.FALSE, params.getParameters().get("validating"));
-        assertEquals("Wrong XML refresh", xmlRefresh, params.getReloadingRefreshDelay());
-        assertEquals("Basic flag not set", Boolean.TRUE, params.getParameters().get("throwExceptionOnMissing"));
+        assertInstanceOf(XPathExpressionEngine.class, params.getParameters().get("expressionEngine"));
+        assertEquals(Boolean.FALSE, params.getParameters().get("validating"));
+        assertEquals(xmlRefresh, params.getReloadingRefreshDelay());
+        assertEquals(Boolean.TRUE, params.getParameters().get("throwExceptionOnMissing"));
 
         final PropertiesBuilderParametersImpl params2 = new PropertiesBuilderParametersImpl();
         builder.initChildBuilderParameters(params2);
-        assertEquals("Wrong default refresh", defRefresh, params2.getReloadingRefreshDelay());
+        assertEquals(defRefresh, params2.getReloadingRefreshDelay());
     }
 
     /**
@@ -908,11 +908,11 @@ public class TestCombinedConfigurationBuilder {
         final File testFile = ConfigurationAssert.getTestFile("testInterpolationBuilder.xml");
         builder.configure(createParameters().setFile(testFile));
         final CombinedConfiguration combConfig = builder.getConfiguration();
-        assertEquals("Wrong value", "abc-product", combConfig.getString("products.product.desc"));
+        assertEquals("abc-product", combConfig.getString("products.product.desc"));
         final XMLConfiguration xmlConfig = (XMLConfiguration) combConfig.getConfiguration("test");
-        assertEquals("Wrong value from XML config", "abc-product", xmlConfig.getString("products/product/desc"));
+        assertEquals("abc-product", xmlConfig.getString("products/product/desc"));
         final HierarchicalConfiguration<ImmutableNode> subConfig = xmlConfig.configurationAt("products/product[@name='abc']", true);
-        assertEquals("Wrong value from sub config", "abc-product", subConfig.getString("desc"));
+        assertEquals("abc-product", subConfig.getString("desc"));
     }
 
     /**
@@ -923,7 +923,7 @@ public class TestCombinedConfigurationBuilder {
         final File multiFile = ConfigurationAssert.getTestFile("testDigesterConfiguration3.xml");
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilderParameters(createParameters().setFile(multiFile)));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertTrue("JNDI property not found", cc.getBoolean("test.onlyinjndi"));
+        assertTrue(cc.getBoolean("test.onlyinjndi"));
     }
 
     /**
@@ -934,24 +934,24 @@ public class TestCombinedConfigurationBuilder {
         final File additonalFile = ConfigurationAssert.getTestFile("testDigesterConfiguration2.xml");
         builder.configure(createParameters().setFile(additonalFile));
         final CombinedConfiguration compositeConfiguration = builder.getConfiguration();
-        assertEquals("Verify how many configs", 2, compositeConfiguration.getNumberOfConfigurations());
+        assertEquals(2, compositeConfiguration.getNumberOfConfigurations());
 
         // Test if union was constructed correctly
         Object prop = compositeConfiguration.getProperty("tables.table.name");
-        assertTrue(prop instanceof Collection);
-        assertEquals(3, ((Collection<?>) prop).size());
+        Collection<?> collection = assertInstanceOf(Collection.class, prop);
+        assertEquals(3, collection.size());
         assertEquals("users", compositeConfiguration.getProperty("tables.table(0).name"));
         assertEquals("documents", compositeConfiguration.getProperty("tables.table(1).name"));
         assertEquals("tasks", compositeConfiguration.getProperty("tables.table(2).name"));
 
         prop = compositeConfiguration.getProperty("tables.table.fields.field.name");
-        assertTrue(prop instanceof Collection);
-        assertEquals(17, ((Collection<?>) prop).size());
+        collection = assertInstanceOf(Collection.class, prop);
+        assertEquals(17, collection.size());
 
         assertEquals("smtp.mydomain.org", compositeConfiguration.getString("mail.host.smtp"));
         assertEquals("pop3.mydomain.org", compositeConfiguration.getString("mail.host.pop"));
 
-        // This was overriden
+        // This was overridden
         assertEquals("masterOfPost", compositeConfiguration.getString("mail.account.user"));
         assertEquals("topsecret", compositeConfiguration.getString("mail.account.psswd"));
 
@@ -995,19 +995,19 @@ public class TestCombinedConfigurationBuilder {
         final BasicConfigurationBuilder<? extends BaseHierarchicalConfiguration> defBuilder = createDefinitionBuilder(defConfig);
         builder.configure(new CombinedBuilderParametersImpl().setDefinitionBuilder(defBuilder));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertEquals("Wrong number of configurations", 1, cc.getNumberOfConfigurations());
-        assertTrue("Wrong configuration type", cc.getConfiguration(name) instanceof XMLConfiguration);
+        assertEquals(1, cc.getNumberOfConfigurations());
+        assertInstanceOf(XMLConfiguration.class, cc.getConfiguration(name));
     }
 
     /**
      * Tests loading a definition file with optional and non optional configuration sources. One non optional does not
      * exist, so this should cause an exception.
      */
-    @Test(expected = ConfigurationException.class)
-    public void testLoadOptionalWithException() throws ConfigurationException {
+    @Test
+    public void testLoadOptionalWithException() {
         final File optionalExFile = ConfigurationAssert.getTestFile("testDigesterOptionalConfigurationEx.xml");
         builder.configure(createParameters().setFile(optionalExFile));
-        builder.getConfiguration();
+        assertThrows(ConfigurationException.class, builder::getConfiguration);
     }
 
     /**
@@ -1030,9 +1030,9 @@ public class TestCombinedConfigurationBuilder {
         final CombinedConfiguration config = createMultiFileConfig("testCCMultiTenent.xml");
         switchToMultiFile("1001");
         final HierarchicalConfiguration<?> multiConf = (HierarchicalConfiguration<?>) config.getConfiguration("clientConfig");
-        assertTrue("Expression engine not configured", multiConf.getExpressionEngine() instanceof XPathExpressionEngine);
-        assertEquals("Wrong bg color", "#808080", config.getString("colors.background"));
-        assertEquals("Wrong text color", "#000000", multiConf.getString("colors/text"));
+        assertInstanceOf(XPathExpressionEngine.class, multiConf.getExpressionEngine());
+        assertEquals("#808080", config.getString("colors.background"));
+        assertEquals("#000000", multiConf.getString("colors/text"));
     }
 
     /**
@@ -1050,10 +1050,10 @@ public class TestCombinedConfigurationBuilder {
         reloadConfig.setProperty(key, "no");
         handler.save();
         try {
-            assertEquals("Wrong property", "no", config.getString(key));
+            assertEquals("no", config.getString(key));
             final ConfigurationBuilder<? extends Configuration> childBuilder = builder.getNamedBuilder("clientConfig");
-            assertTrue("Not a reloading builder", childBuilder instanceof ReloadingControllerSupport);
-            final ReloadingController ctrl = ((ReloadingControllerSupport) childBuilder).getReloadingController();
+            final ReloadingControllerSupport reloadingControllerSupport = assertInstanceOf(ReloadingControllerSupport.class, childBuilder);
+            final ReloadingController ctrl = reloadingControllerSupport.getReloadingController();
             ctrl.checkForReloading(null); // initialize reloading
             final BuilderEventListenerImpl listener = new BuilderEventListenerImpl();
             childBuilder.addEventListener(ConfigurationBuilderEvent.RESET, listener);
@@ -1069,25 +1069,25 @@ public class TestCombinedConfigurationBuilder {
                     handler.save(outFile);
                 }
             } while (!changeDetected && --attempts > 0);
-            assertTrue("No change detected", changeDetected);
-            assertEquals("Wrong updated property", "yes", builder.getConfiguration().getString(key));
+            assertTrue(changeDetected);
+            assertEquals("yes", builder.getConfiguration().getString(key));
             final ConfigurationBuilderEvent event = listener.nextEvent(ConfigurationBuilderEvent.RESET);
             listener.assertNoMoreEvents();
-            final BasicConfigurationBuilder<? extends Configuration> multiBuilder = (BasicConfigurationBuilder<? extends Configuration>) event.getSource();
+            final BasicConfigurationBuilder<?> multiBuilder = (BasicConfigurationBuilder<?>) event.getSource();
             childBuilder.removeEventListener(ConfigurationBuilderEvent.RESET, listener);
             multiBuilder.resetResult();
             listener.assertNoMoreEvents();
         } finally {
-            assertTrue("Output file could not be deleted", outFile.delete());
+            assertTrue(outFile.delete());
         }
     }
 
     /**
      * Tries to build a configuration if no definition builder is provided.
      */
-    @Test(expected = ConfigurationException.class)
-    public void testNoDefinitionBuilder() throws ConfigurationException {
-        builder.getConfiguration();
+    @Test
+    public void testNoDefinitionBuilder() {
+        assertThrows(ConfigurationException.class, builder::getConfiguration);
     }
 
     /**
@@ -1097,7 +1097,7 @@ public class TestCombinedConfigurationBuilder {
     public void testProviderInDefinitionConfig() throws ConfigurationException {
         builder.configure(createParameters().setFile(ConfigurationAssert.getTestFile("testCCCustomProvider.xml")));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertTrue("Property not found", cc.getBoolean("testKey"));
+        assertTrue(cc.getBoolean("testKey"));
     }
 
     /**
@@ -1110,7 +1110,7 @@ public class TestCombinedConfigurationBuilder {
         final CombinedConfiguration cc = builder.getConfiguration();
         final BasicConfigurationBuilder<?> subBuilder = (BasicConfigurationBuilder<?>) builder.getNamedBuilder(BUILDER_NAME);
         subBuilder.reset();
-        assertNotSame("Configuration not newly created", cc, builder.getConfiguration());
+        assertNotSame(cc, builder.getConfiguration());
     }
 
     /**
@@ -1122,7 +1122,7 @@ public class TestCombinedConfigurationBuilder {
         attrs.put("config-reload", Boolean.TRUE);
         prepareSubBuilderTest(attrs);
         builder.getConfiguration();
-        assertTrue("Not a reloading builder", builder.getNamedBuilder(BUILDER_NAME) instanceof ReloadingFileBasedConfigurationBuilder);
+        assertInstanceOf(ReloadingFileBasedConfigurationBuilder.class, builder.getNamedBuilder(BUILDER_NAME));
     }
 
     /**
@@ -1138,9 +1138,9 @@ public class TestCombinedConfigurationBuilder {
         prepareSubBuilderTest(attrs);
         final CombinedConfiguration cc = builder.getConfiguration();
         final BasicConfigurationBuilder<?> subBuilder2 = (BasicConfigurationBuilder<?>) builder.getNamedBuilder(BUILDER_NAME);
-        assertNotSame("Got the same sub builder", subBuilder, subBuilder2);
+        assertNotSame(subBuilder, subBuilder2);
         subBuilder.reset();
-        assertSame("Configuration was reset", cc, builder.getConfiguration());
+        assertSame(cc, builder.getConfiguration());
     }
 
     /**
@@ -1154,9 +1154,9 @@ public class TestCombinedConfigurationBuilder {
         final ConfigurationBuilder<? extends Configuration> subBuilder = builder.getNamedBuilder(BUILDER_NAME);
         defBuilder.reset();
         final CombinedConfiguration cc2 = builder.getConfiguration();
-        assertNotSame("No new configuration instance", cc, cc2);
+        assertNotSame(cc, cc2);
         final ConfigurationBuilder<? extends Configuration> subBuilder2 = builder.getNamedBuilder(BUILDER_NAME);
-        assertNotSame("No new sub builder instance", subBuilder, subBuilder2);
+        assertNotSame(subBuilder, subBuilder2);
     }
 
     /**
@@ -1167,7 +1167,7 @@ public class TestCombinedConfigurationBuilder {
     public void testRootNodeInitializedAfterCreation() throws ConfigurationException {
         builder.configure(createParameters().setFile(TEST_FILE));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertNotNull("Root node not initialized", cc.getNodeModel().getNodeHandler().getRootNode());
+        assertNotNull(cc.getNodeModel().getNodeHandler().getRootNode());
     }
 
     /**
@@ -1182,7 +1182,7 @@ public class TestCombinedConfigurationBuilder {
 
         final XMLConfiguration xmlConfig = (XMLConfiguration) config.getConfiguration("xml");
         final List<String> list = xmlConfig.getList(String.class, "split.list1");
-        assertEquals("Wrong number of elements in XML list", 1, list.size());
+        assertEquals(1, list.size());
     }
 
     /**
@@ -1194,7 +1194,7 @@ public class TestCombinedConfigurationBuilder {
         final File systemFile = ConfigurationAssert.getTestFile("testCCSystemProperties.xml");
         builder.configure(createParameters().setFile(systemFile));
         final CombinedConfiguration cc = builder.getConfiguration();
-        assertTrue("System property not found", cc.containsKey("user.name"));
-        assertEquals("Properties not added", "value1", System.getProperty("key1"));
+        assertTrue(cc.containsKey("user.name"));
+        assertEquals("value1", System.getProperty("key1"));
     }
 }

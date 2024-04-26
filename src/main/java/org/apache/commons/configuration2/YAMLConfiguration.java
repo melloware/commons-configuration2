@@ -24,13 +24,12 @@ import java.io.Writer;
 import java.util.Map;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.apache.commons.configuration2.io.InputStreamSupport;
 import org.apache.commons.configuration2.tree.ImmutableNode;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.yaml.snakeyaml.representer.Representer;
 
 /**
@@ -41,6 +40,16 @@ import org.yaml.snakeyaml.representer.Representer;
  * @since 2.2
  */
 public class YAMLConfiguration extends AbstractYAMLBasedConfiguration implements FileBasedConfiguration, InputStreamSupport {
+    /**
+     * Creates a {@code Yaml} object for reading a Yaml file. The object is configured with some default settings.
+     *
+     * @param options options for loading the file
+     * @return the {@code Yaml} instance for loading a file
+     */
+    private static Yaml createYamlForReading(final LoaderOptions options) {
+        return new Yaml(new SafeConstructor(options), new Representer(new DumperOptions()), new DumperOptions(), options);
+    }
+
     /**
      * Creates a new instance of {@code YAMLConfiguration}.
      */
@@ -54,34 +63,6 @@ public class YAMLConfiguration extends AbstractYAMLBasedConfiguration implements
      */
     public YAMLConfiguration(final HierarchicalConfiguration<ImmutableNode> c) {
         super(c);
-    }
-
-    @Override
-    public void read(final Reader in) throws ConfigurationException {
-        try {
-            final Yaml yaml = createYamlForReading(new LoaderOptions());
-            final Map<String, Object> map = yaml.load(in);
-            load(map);
-        } catch (final Exception e) {
-            rethrowException(e);
-        }
-    }
-
-    public void read(final Reader in, final LoaderOptions options) throws ConfigurationException {
-        try {
-            final Yaml yaml = createYamlForReading(options);
-            final Map<String, Object> map = yaml.load(in);
-            load(map);
-        } catch (final Exception e) {
-            rethrowException(e);
-        }
-    }
-
-    @Override
-    public void write(final Writer out) throws ConfigurationException, IOException {
-        final DumperOptions options = new DumperOptions();
-        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        dump(out, options);
     }
 
     public void dump(final Writer out, final DumperOptions options)
@@ -117,28 +98,32 @@ public class YAMLConfiguration extends AbstractYAMLBasedConfiguration implements
         }
     }
 
-    /**
-     * Creates a {@code Yaml} object for reading a Yaml file. The object is configured with some default settings.
-     *
-     * @param options options for loading the file
-     * @return the {@code Yaml} instance for loading a file
-     */
-    private static Yaml createYamlForReading(final LoaderOptions options) {
-        return new Yaml(createClassLoadingDisablingConstructor(), new Representer(), new DumperOptions(), options);
+    @Override
+    public void read(final Reader in) throws ConfigurationException {
+        try {
+            final Yaml yaml = createYamlForReading(new LoaderOptions());
+            final Map<String, Object> map = yaml.load(in);
+            load(map);
+        } catch (final Exception e) {
+            rethrowException(e);
+        }
     }
 
-    /**
-     * Returns a {@code Constructor} object for the YAML parser that prevents all classes from being loaded. This
-     * effectively disables the dynamic creation of Java objects that are declared in YAML files to be loaded.
-     *
-     * @return the {@code Constructor} preventing object creation
-     */
-    private static Constructor createClassLoadingDisablingConstructor() {
-        return new Constructor() {
-            @Override
-            protected Class<?> getClassForName(final String name) {
-                throw new ConfigurationRuntimeException("Class instantiation is disabled.");
-            }
-        };
+    public void read(final Reader in, final LoaderOptions options) throws ConfigurationException {
+        try {
+            final Yaml yaml = createYamlForReading(options);
+            final Map<String, Object> map = yaml.load(in);
+            load(map);
+        } catch (final Exception e) {
+            rethrowException(e);
+        }
     }
+
+    @Override
+    public void write(final Writer out) throws ConfigurationException, IOException {
+        final DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        dump(out, options);
+    }
+
 }

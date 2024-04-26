@@ -17,12 +17,14 @@
 
 package org.apache.commons.configuration2.web;
 
-import javax.servlet.ServletRequest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import javax.servlet.ServletRequest;
 
 /**
  * A configuration wrapper to read the parameters of a servlet request. This configuration is read only, adding or
@@ -31,6 +33,7 @@ import java.util.Map;
  * @since 1.1
  */
 public class ServletRequestConfiguration extends BaseWebConfiguration {
+
     /** Stores the wrapped request. */
     protected ServletRequest request;
 
@@ -40,7 +43,14 @@ public class ServletRequestConfiguration extends BaseWebConfiguration {
      * @param request the servlet request
      */
     public ServletRequestConfiguration(final ServletRequest request) {
-        this.request = request;
+        this.request = Objects.requireNonNull(request, "config");
+    }
+
+    @Override
+    protected Iterator<String> getKeysInternal() {
+        // According to the documentation of getParameterMap(), keys are Strings.
+        final Map<String, ?> parameterMap = request.getParameterMap();
+        return parameterMap.keySet().iterator();
     }
 
     @Override
@@ -64,12 +74,5 @@ public class ServletRequestConfiguration extends BaseWebConfiguration {
             }
         }
         return result;
-    }
-
-    @Override
-    protected Iterator<String> getKeysInternal() {
-        // According to the documentation of getParameterMap(), keys are Strings.
-        final Map<String, ?> parameterMap = request.getParameterMap();
-        return parameterMap.keySet().iterator();
     }
 }

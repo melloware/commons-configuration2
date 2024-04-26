@@ -16,14 +16,16 @@
  */
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.apache.commons.configuration2.sync.Synchronizer;
 
 /**
  * A test implementation of Synchronizer which allows keeping track about the methods called by the configuration.
- *
  */
 public class SynchronizerTestImpl implements Synchronizer {
     /**
@@ -104,7 +106,7 @@ public class SynchronizerTestImpl implements Synchronizer {
      * @param expMethods the expected methods
      */
     public void verify(final Methods... expMethods) {
-        assertEquals("Wrong methods invoked", constructExpectedMethods(expMethods), methods.toString());
+        assertEquals(constructExpectedMethods(expMethods), methods.toString());
     }
 
     /**
@@ -113,7 +115,7 @@ public class SynchronizerTestImpl implements Synchronizer {
      * @param expMethods the expected methods
      */
     public void verifyContains(final Methods... expMethods) {
-        assertTrue("Expected methods not found: " + methods, methods.toString().indexOf(constructExpectedMethods(expMethods)) >= 0);
+        assertThat(methods.toString(), containsString(constructExpectedMethods(expMethods)));
     }
 
     /**
@@ -122,7 +124,7 @@ public class SynchronizerTestImpl implements Synchronizer {
      * @param expMethods the expected methods
      */
     public void verifyEnd(final Methods... expMethods) {
-        assertTrue("Wrong methods at start: " + methods, methods.toString().endsWith(constructExpectedMethods(expMethods)));
+        assertThat(methods.toString(), endsWith(constructExpectedMethods(expMethods)));
     }
 
     /**
@@ -131,6 +133,6 @@ public class SynchronizerTestImpl implements Synchronizer {
      * @param expMethods the expected methods
      */
     public void verifyStart(final Methods... expMethods) {
-        assertTrue("Wrong methods at start: " + methods, methods.toString().startsWith(constructExpectedMethods(expMethods)));
+        assertThat(methods.toString(), startsWith(constructExpectedMethods(expMethods)));
     }
 }

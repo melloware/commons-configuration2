@@ -27,9 +27,37 @@ package org.apache.commons.configuration2;
  * to generate corresponding SAX events. By registering a {@code ContentHandler} at an instance it is possible to
  * perform XML processing on a configuration object.
  * </p>
- *
  */
 public class BaseConfigurationXMLReader extends ConfigurationXMLReader {
+    /**
+     * An internally used helper class to iterate over all configuration keys ant to generate corresponding SAX events.
+     */
+    final class SAXConverter extends HierarchicalConfigurationConverter {
+        /**
+         * Callback for the end of an element.
+         *
+         * @param name the element name
+         */
+        @Override
+        protected void elementEnd(final String name) {
+            fireElementEnd(name);
+        }
+
+        /**
+         * Callback for the start of an element.
+         *
+         * @param name the element name
+         * @param value the element value
+         */
+        @Override
+        protected void elementStart(final String name, final Object value) {
+            fireElementStart(name, null);
+            if (value != null) {
+                fireCharacters(value.toString());
+            }
+        }
+    }
+
     /** Stores the actual configuration. */
     private Configuration config;
 
@@ -50,7 +78,7 @@ public class BaseConfigurationXMLReader extends ConfigurationXMLReader {
     }
 
     /**
-     * Returns the actual configuration to be processed.
+     * Gets the actual configuration to be processed.
      *
      * @return the actual configuration
      */
@@ -59,16 +87,7 @@ public class BaseConfigurationXMLReader extends ConfigurationXMLReader {
     }
 
     /**
-     * Sets the configuration to be processed.
-     *
-     * @param conf the configuration
-     */
-    public void setConfiguration(final Configuration conf) {
-        config = conf;
-    }
-
-    /**
-     * Returns the configuration to be processed.
+     * Gets the configuration to be processed.
      *
      * @return the actual configuration
      */
@@ -89,32 +108,11 @@ public class BaseConfigurationXMLReader extends ConfigurationXMLReader {
     }
 
     /**
-     * An internally used helper class to iterate over all configuration keys ant to generate corresponding SAX events.
+     * Sets the configuration to be processed.
      *
+     * @param conf the configuration
      */
-    class SAXConverter extends HierarchicalConfigurationConverter {
-        /**
-         * Callback for the start of an element.
-         *
-         * @param name the element name
-         * @param value the element value
-         */
-        @Override
-        protected void elementStart(final String name, final Object value) {
-            fireElementStart(name, null);
-            if (value != null) {
-                fireCharacters(value.toString());
-            }
-        }
-
-        /**
-         * Callback for the end of an element.
-         *
-         * @param name the element name
-         */
-        @Override
-        protected void elementEnd(final String name) {
-            fireElementEnd(name);
-        }
+    public void setConfiguration(final Configuration conf) {
+        config = conf;
     }
 }

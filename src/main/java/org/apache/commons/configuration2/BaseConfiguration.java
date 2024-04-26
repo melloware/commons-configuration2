@@ -32,10 +32,9 @@ import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
  *
  * This class extends normal Java properties by adding the possibility to use the same key many times concatenating the
  * value strings instead of overwriting them.
- *
  */
 public class BaseConfiguration extends AbstractConfiguration implements Cloneable {
-    /** stores the configuration key-value pairs */
+    /** Stores the configuration key-value pairs */
     private Map<String, Object> store = new LinkedHashMap<>();
 
     /**
@@ -66,38 +65,9 @@ public class BaseConfiguration extends AbstractConfiguration implements Cloneabl
         }
     }
 
-    /**
-     * Read property from underlying map.
-     *
-     * @param key key to use for mapping
-     *
-     * @return object associated with the given configuration key.
-     */
     @Override
-    protected Object getPropertyInternal(final String key) {
-        return store.get(key);
-    }
-
-    /**
-     * Check if the configuration is empty
-     *
-     * @return {@code true} if Configuration is empty, {@code false} otherwise.
-     */
-    @Override
-    protected boolean isEmptyInternal() {
-        return store.isEmpty();
-    }
-
-    /**
-     * check if the configuration contains the key
-     *
-     * @param key the configuration key
-     *
-     * @return {@code true} if Configuration contain given key, {@code false} otherwise.
-     */
-    @Override
-    protected boolean containsKeyInternal(final String key) {
-        return store.containsKey(key);
+    protected void clearInternal() {
+        store.clear();
     }
 
     /**
@@ -108,30 +78,6 @@ public class BaseConfiguration extends AbstractConfiguration implements Cloneabl
     @Override
     protected void clearPropertyDirect(final String key) {
         store.remove(key);
-    }
-
-    @Override
-    protected void clearInternal() {
-        store.clear();
-    }
-
-    /**
-     * {@inheritDoc} This implementation obtains the size directly from the map used as data store. So this is a rather
-     * efficient implementation.
-     */
-    @Override
-    protected int sizeInternal() {
-        return store.size();
-    }
-
-    /**
-     * Get the list of the keys contained in the configuration repository.
-     *
-     * @return An Iterator.
-     */
-    @Override
-    protected Iterator<String> getKeysInternal() {
-        return store.keySet().iterator();
     }
 
     /**
@@ -168,13 +114,66 @@ public class BaseConfiguration extends AbstractConfiguration implements Cloneabl
         copy.store = clonedStore;
 
         // Handle collections in the map; they have to be cloned, too
-        for (final Map.Entry<String, Object> e : store.entrySet()) {
-            if (e.getValue() instanceof Collection) {
+        store.forEach((k, v) -> {
+            if (v instanceof Collection) {
                 // This is safe because the collections were created by ourselves
                 @SuppressWarnings("unchecked")
-                final Collection<String> strList = (Collection<String>) e.getValue();
-                copy.store.put(e.getKey(), new ArrayList<>(strList));
+                final Collection<String> strList = (Collection<String>) v;
+                copy.store.put(k, new ArrayList<>(strList));
             }
-        }
+        });
+    }
+
+    /**
+     * check if the configuration contains the key
+     *
+     * @param key the configuration key
+     *
+     * @return {@code true} if Configuration contain given key, {@code false} otherwise.
+     */
+    @Override
+    protected boolean containsKeyInternal(final String key) {
+        return store.containsKey(key);
+    }
+
+    /**
+     * Gets the list of the keys contained in the configuration repository.
+     *
+     * @return An Iterator.
+     */
+    @Override
+    protected Iterator<String> getKeysInternal() {
+        return store.keySet().iterator();
+    }
+
+    /**
+     * Read property from underlying map.
+     *
+     * @param key key to use for mapping
+     *
+     * @return object associated with the given configuration key.
+     */
+    @Override
+    protected Object getPropertyInternal(final String key) {
+        return store.get(key);
+    }
+
+    /**
+     * Check if the configuration is empty
+     *
+     * @return {@code true} if Configuration is empty, {@code false} otherwise.
+     */
+    @Override
+    protected boolean isEmptyInternal() {
+        return store.isEmpty();
+    }
+
+    /**
+     * {@inheritDoc} This implementation obtains the size directly from the map used as data store. So this is a rather
+     * efficient implementation.
+     */
+    @Override
+    protected int sizeInternal() {
+        return store.size();
     }
 }

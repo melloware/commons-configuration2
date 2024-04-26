@@ -16,18 +16,17 @@
  */
 package org.apache.commons.configuration2.interpol;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.awt.event.KeyEvent;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for ConstantLookup.
- *
  */
 public class TestConstantLookup {
     /** A public field that can be read by the lookup. */
@@ -40,7 +39,7 @@ public class TestConstantLookup {
     /** The lookup object to be tested. */
     private ConstantLookup lookup;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         lookup = new ConstantLookup();
     }
@@ -48,7 +47,7 @@ public class TestConstantLookup {
     /**
      * Clears the test environment. Here the static cache of the constant lookup class is wiped out.
      */
-    @After
+    @AfterEach
     public void tearDown() {
         ConstantLookup.clear();
     }
@@ -67,7 +66,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupConstant() {
-        assertEquals("Wrong value of constant", FIELD, lookup.lookup(variable("FIELD")));
+        assertEquals(FIELD, lookup.lookup(variable("FIELD")));
     }
 
     /**
@@ -75,7 +74,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupInvalidSyntax() {
-        assertNull("Non null return value for invalid variable name", lookup.lookup("InvalidVariableName"));
+        assertNull(lookup.lookup("InvalidVariableName"));
     }
 
     /**
@@ -83,7 +82,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupNonExisting() {
-        assertNull("Non null return value for non existing constant", lookup.lookup(variable("NO_FIELD")));
+        assertNull(lookup.lookup(variable("NO_FIELD")));
     }
 
     /**
@@ -93,8 +92,8 @@ public class TestConstantLookup {
     public void testLookupNonStringFromCache() {
         final String var = KeyEvent.class.getName() + ".VK_ESCAPE";
         final Object expected = KeyEvent.VK_ESCAPE;
-        assertEquals("Wrong result of first lookup", expected, lookup.lookup(var));
-        assertEquals("Wrong result of 2nd lookup", expected, lookup.lookup(var));
+        assertEquals(expected, lookup.lookup(var));
+        assertEquals(expected, lookup.lookup(var));
     }
 
     /**
@@ -102,7 +101,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupNull() {
-        assertNull("Non null return value for null variable", lookup.lookup(null));
+        assertNull(lookup.lookup(null));
     }
 
     /**
@@ -110,7 +109,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupPrivate() {
-        assertNull("Non null return value for non accessible field", lookup.lookup(variable("PRIVATE_FIELD")));
+        assertNull(lookup.lookup(variable("PRIVATE_FIELD")));
     }
 
     /**
@@ -118,7 +117,7 @@ public class TestConstantLookup {
      */
     @Test
     public void testLookupUnknownClass() {
-        assertNull("Non null return value for unknown class", lookup.lookup("org.apache.commons.configuration.NonExistingConfig." + FIELD));
+        assertNull(lookup.lookup("org.apache.commons.configuration.NonExistingConfig." + FIELD));
     }
 
     /**

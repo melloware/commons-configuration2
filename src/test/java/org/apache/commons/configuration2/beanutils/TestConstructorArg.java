@@ -16,23 +16,23 @@
  */
 package org.apache.commons.configuration2.beanutils;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
-import org.easymock.EasyMock;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code ConstructorArg}.
- *
  */
 public class TestConstructorArg {
     /**
      * Tries to create an instance for a null bean declaration.
      */
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testForBeanDeclarationNull() {
-        ConstructorArg.forBeanDeclaration(null);
+        assertThrows(NullPointerException.class, () -> ConstructorArg.forBeanDeclaration(null));
     }
 
     /**
@@ -41,7 +41,7 @@ public class TestConstructorArg {
     @Test
     public void testIsNestedBeanDeclarationFalse() {
         final ConstructorArg arg = ConstructorArg.forValue("test");
-        assertFalse("A bean declaration", arg.isNestedBeanDeclaration());
+        assertFalse(arg.isNestedBeanDeclaration());
     }
 
     /**
@@ -49,10 +49,9 @@ public class TestConstructorArg {
      */
     @Test
     public void testIsNestedBeanDeclarationTrue() {
-        final BeanDeclaration decl = EasyMock.createMock(BeanDeclaration.class);
-        EasyMock.replay(decl);
+        final BeanDeclaration decl = mock(BeanDeclaration.class);
         final ConstructorArg arg = ConstructorArg.forBeanDeclaration(decl);
-        assertTrue("No bean declaration", arg.isNestedBeanDeclaration());
+        assertTrue(arg.isNestedBeanDeclaration());
     }
 
     /**
@@ -61,8 +60,8 @@ public class TestConstructorArg {
     @Test
     public void testMatchesNoType() {
         final ConstructorArg arg = ConstructorArg.forValue(42);
-        assertTrue("No match (1)", arg.matches(String.class));
-        assertTrue("No match (2)", arg.matches(getClass()));
+        assertTrue(arg.matches(String.class));
+        assertTrue(arg.matches(getClass()));
     }
 
     /**
@@ -71,7 +70,7 @@ public class TestConstructorArg {
     @Test
     public void testMatchesNull() {
         final ConstructorArg arg = ConstructorArg.forValue(0);
-        assertFalse("Wrong result", arg.matches(null));
+        assertFalse(arg.matches(null));
     }
 
     /**
@@ -80,8 +79,8 @@ public class TestConstructorArg {
     @Test
     public void testMatchesWithType() {
         final ConstructorArg arg = ConstructorArg.forValue("42", int.class.getName());
-        assertTrue("Wrong result (1)", arg.matches(Integer.TYPE));
-        assertFalse("Wrong result (2)", arg.matches(Integer.class));
-        assertFalse("Wrong result (3)", arg.matches(String.class));
+        assertTrue(arg.matches(Integer.TYPE));
+        assertFalse(arg.matches(Integer.class));
+        assertFalse(arg.matches(String.class));
     }
 }

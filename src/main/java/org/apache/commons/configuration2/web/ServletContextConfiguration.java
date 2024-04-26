@@ -20,6 +20,7 @@ package org.apache.commons.configuration2.web;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Objects;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
@@ -31,6 +32,7 @@ import javax.servlet.ServletContext;
  * @since 1.1
  */
 public class ServletContextConfiguration extends BaseWebConfiguration {
+
     /** Stores the wrapped servlet context. */
     protected ServletContext context;
 
@@ -40,7 +42,7 @@ public class ServletContextConfiguration extends BaseWebConfiguration {
      * @param servlet the servlet
      */
     public ServletContextConfiguration(final Servlet servlet) {
-        this.context = servlet.getServletConfig().getServletContext();
+        this.context = Objects.requireNonNull(servlet, "servlet").getServletConfig().getServletContext();
     }
 
     /**
@@ -49,12 +51,7 @@ public class ServletContextConfiguration extends BaseWebConfiguration {
      * @param context the servlet context
      */
     public ServletContextConfiguration(final ServletContext context) {
-        this.context = context;
-    }
-
-    @Override
-    protected Object getPropertyInternal(final String key) {
-        return handleDelimiters(context.getInitParameter(key));
+        this.context = Objects.requireNonNull(context, "context");
     }
 
     @Override
@@ -63,5 +60,10 @@ public class ServletContextConfiguration extends BaseWebConfiguration {
         // enumeration is of type String.
         final Enumeration<String> en = context.getInitParameterNames();
         return Collections.list(en).iterator();
+    }
+
+    @Override
+    protected Object getPropertyInternal(final String key) {
+        return handleDelimiters(context.getInitParameter(key));
     }
 }

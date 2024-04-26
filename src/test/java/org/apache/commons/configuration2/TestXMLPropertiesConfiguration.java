@@ -17,8 +17,13 @@
 
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.apache.commons.configuration2.TempDirUtils.newFile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.io.File;
+import java.net.URL;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,20 +32,16 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import java.io.File;
-import java.net.URL;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.io.FileHandler;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 
 /**
  * Test class for {@code XMLPropertiesConfiguration}.
- *
  */
 public class TestXMLPropertiesConfiguration {
     /** Constant for the name of the test file. */
@@ -60,12 +61,15 @@ public class TestXMLPropertiesConfiguration {
         return conf;
     }
 
-    /** A helper object for creating temporary files. */
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    /** A folder for temporary files. */
+    @TempDir
+    public File tempFolder;
 
     @Test
     public void testDOMLoad() throws Exception {
+        // Edge case
+        assertThrows(NullPointerException.class, () -> new XMLPropertiesConfiguration(null));
+        // Normal case
         final URL location = ConfigurationAssert.getTestURL(TEST_PROPERTIES_FILE);
         final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         final DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -74,12 +78,12 @@ public class TestXMLPropertiesConfiguration {
         final Document doc = dBuilder.parse(file);
         final XMLPropertiesConfiguration conf = new XMLPropertiesConfiguration(doc.getDocumentElement());
 
-        assertEquals("header", "Description of the property list", conf.getHeader());
+        assertEquals("Description of the property list", conf.getHeader());
 
-        assertFalse("The configuration is empty", conf.isEmpty());
-        assertEquals("'key1' property", "value1", conf.getProperty("key1"));
-        assertEquals("'key2' property", "value2", conf.getProperty("key2"));
-        assertEquals("'key3' property", "value3", conf.getProperty("key3"));
+        assertFalse(conf.isEmpty());
+        assertEquals("value1", conf.getProperty("key1"));
+        assertEquals("value2", conf.getProperty("key2"));
+        assertEquals("value3", conf.getProperty("key3"));
     }
 
     @Test
@@ -93,7 +97,7 @@ public class TestXMLPropertiesConfiguration {
         conf.setHeader("Description of the new property list");
 
         // save the configuration
-        final File saveFile = folder.newFile("test2.properties.xml");
+        final File saveFile = newFile("test2.properties.xml", tempFolder);
 
         // save as DOM into saveFile
         final DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -110,23 +114,23 @@ public class TestXMLPropertiesConfiguration {
         final XMLPropertiesConfiguration conf2 = load(saveFile.getAbsolutePath());
 
         // test the configuration
-        assertEquals("header", "Description of the new property list", conf2.getHeader());
+        assertEquals("Description of the new property list", conf2.getHeader());
 
-        assertFalse("The configuration is empty", conf2.isEmpty());
-        assertEquals("'key1' property", "value1", conf2.getProperty("key1"));
-        assertEquals("'key3' property", "value3", conf2.getProperty("key3"));
-        assertEquals("'key4' property", "value4", conf2.getProperty("key4"));
+        assertFalse(conf2.isEmpty());
+        assertEquals("value1", conf2.getProperty("key1"));
+        assertEquals("value3", conf2.getProperty("key3"));
+        assertEquals("value4", conf2.getProperty("key4"));
     }
 
     @Test
     public void testLoad() throws Exception {
         final XMLPropertiesConfiguration conf = load(TEST_PROPERTIES_FILE);
-        assertEquals("header", "Description of the property list", conf.getHeader());
+        assertEquals("Description of the property list", conf.getHeader());
 
-        assertFalse("The configuration is empty", conf.isEmpty());
-        assertEquals("'key1' property", "value1", conf.getProperty("key1"));
-        assertEquals("'key2' property", "value2", conf.getProperty("key2"));
-        assertEquals("'key3' property", "value3", conf.getProperty("key3"));
+        assertFalse(conf.isEmpty());
+        assertEquals("value1", conf.getProperty("key1"));
+        assertEquals("value2", conf.getProperty("key2"));
+        assertEquals("value3", conf.getProperty("key3"));
     }
 
     @Test
@@ -140,7 +144,7 @@ public class TestXMLPropertiesConfiguration {
         conf.setHeader("Description of the new property list");
 
         // save the configuration
-        final File saveFile = folder.newFile("test2.properties.xml");
+        final File saveFile = newFile("test2.properties.xml", tempFolder);
         final FileHandler saveHandler = new FileHandler(conf);
         saveHandler.save(saveFile);
 
@@ -148,11 +152,11 @@ public class TestXMLPropertiesConfiguration {
         final XMLPropertiesConfiguration conf2 = load(saveFile.getAbsolutePath());
 
         // test the configuration
-        assertEquals("header", "Description of the new property list", conf2.getHeader());
+        assertEquals("Description of the new property list", conf2.getHeader());
 
-        assertFalse("The configuration is empty", conf2.isEmpty());
-        assertEquals("'key1' property", "value1", conf2.getProperty("key1"));
-        assertEquals("'key3' property", "value3", conf2.getProperty("key3"));
-        assertEquals("'key4' property", "value4", conf2.getProperty("key4"));
+        assertFalse(conf2.isEmpty());
+        assertEquals("value1", conf2.getProperty("key1"));
+        assertEquals("value3", conf2.getProperty("key3"));
+        assertEquals("value4", conf2.getProperty("key4"));
     }
 }

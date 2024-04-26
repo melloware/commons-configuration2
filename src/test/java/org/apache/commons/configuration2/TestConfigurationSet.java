@@ -17,15 +17,15 @@
 
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
 import java.util.Map;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  */
@@ -39,9 +39,9 @@ public class TestConfigurationSet {
         Long.valueOf(Long.MAX_VALUE), Short.valueOf(Short.MAX_VALUE), "This is a string"};
 
     /**
-     * Set up instance variables required by this test case.
+     * Sets up instance variables required by this test case.
      */
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         final BaseConfiguration configuration = new BaseConfiguration();
         for (int i = 0; i < properties.length; i++) {
@@ -53,7 +53,7 @@ public class TestConfigurationSet {
     /**
      * Tear down instance variables required by this test case.
      */
-    @After
+    @AfterEach
     public void tearDown() {
         set = null;
     }
@@ -69,18 +69,18 @@ public class TestConfigurationSet {
             boolean found = false;
             for (int i = 0; i < properties.length; i++) {
                 if (entry.getKey().equals(properties[i])) {
-                    assertEquals("Incorrect value for property " + properties[i], values[i], entry.getValue());
+                    assertEquals(values[i], entry.getValue(), "Incorrect value for property " + properties[i]);
                     found = true;
                 }
             }
-            assertTrue("Could not find property " + entry.getKey(), found);
+            assertTrue(found, "Could not find property " + entry.getKey());
             iterator.remove();
         }
-        assertTrue("Iterator failed to remove all properties.", set.isEmpty());
+        assertTrue(set.isEmpty());
     }
 
     @Test
     public void testSize() {
-        assertEquals("Entry set does not match properties size.", properties.length, set.size());
+        assertEquals(properties.length, set.size());
     }
 }

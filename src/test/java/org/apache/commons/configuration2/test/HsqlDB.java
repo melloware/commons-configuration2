@@ -1,5 +1,3 @@
-package org.apache.commons.configuration2.test;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,6 +15,8 @@ package org.apache.commons.configuration2.test;
  * limitations under the License.
  */
 
+package org.apache.commons.configuration2.test;
+
 import java.io.FileReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -29,7 +29,6 @@ import org.apache.commons.logging.LogFactory;
 
 /**
  * Stolen from Turbine
- *
  */
 
 public class HsqlDB {
@@ -61,7 +60,7 @@ public class HsqlDB {
     private String getFileContents(final String fileName) throws Exception {
         try (FileReader fr = new FileReader(fileName)) {
 
-            final char fileBuf[] = new char[1024];
+            final char[] fileBuf = new char[1024];
             final StringBuilder sb = new StringBuilder(1000);
             int res = -1;
 

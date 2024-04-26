@@ -33,31 +33,34 @@ import java.util.Set;
  */
 public interface NodeHandler<T> {
     /**
-     * Returns the name of the specified node
+     * Gets an unmodifiable set with the names of all attributes of the specified node.
      *
      * @param node the node
-     * @return the name of this node
+     * @return a set with the names of all attributes of this node
      */
-    String nodeName(T node);
+    Set<String> getAttributes(T node);
 
     /**
-     * Returns the value of the specified node.
+     * Gets the value of the specified attribute from the given node. If a concrete {@code NodeHandler} supports
+     * attributes with multiple values, result might be a collection.
      *
      * @param node the node
-     * @return the value of this node
+     * @param name the name of the attribute
+     * @return the value of this attribute
      */
-    Object getValue(T node);
+    Object getAttributeValue(T node, String name);
 
     /**
-     * Returns the parent of the specified node.
+     * Gets the child with the given index of the specified node.
      *
      * @param node the node
-     * @return the parent node
+     * @param index the index (0-based)
+     * @return the child with the given index
      */
-    T getParent(T node);
+    T getChild(T node, int index);
 
     /**
-     * Returns an unmodifiable list with all children of the specified node.
+     * Gets an unmodifiable list with all children of the specified node.
      *
      * @param node the node
      * @return a list with the child nodes of this node
@@ -65,7 +68,7 @@ public interface NodeHandler<T> {
     List<T> getChildren(T node);
 
     /**
-     * Returns an unmodifiable list of all children of the specified node with the given name.
+     * Gets an unmodifiable list of all children of the specified node with the given name.
      *
      * @param node the node
      * @param name the name of the desired child nodes
@@ -74,7 +77,20 @@ public interface NodeHandler<T> {
     List<T> getChildren(T node, String name);
 
     /**
-     * Returns an unmodifiable list of all children of the specified node which are matched by the passed in
+     * Gets the number of children of the specified node with the given name. This method exists for performance reasons:
+     * for some node implementations it may be by far more efficient to count the children than to query a list of all
+     * children and determine its size. A concrete implementation can choose the most efficient way to determine the number
+     * of children. If a child name is passed in, only the children with this name are taken into account. If the name
+     * <b>null</b> is passed, the total number of children must be returned.
+     *
+     * @param node the node
+     * @param name the name of the children in question (can be <b>null</b> for all children)
+     * @return the number of the selected children
+     */
+    int getChildrenCount(T node, String name);
+
+    /**
+     * Gets an unmodifiable list of all children of the specified node which are matched by the passed in
      * {@code NodeMatcher} against the provided criterion. This method allows for advanced queries on a node's children.
      *
      * @param node the node
@@ -86,13 +102,48 @@ public interface NodeHandler<T> {
     <C> List<T> getMatchingChildren(T node, NodeMatcher<C> matcher, C criterion);
 
     /**
-     * Returns the child with the given index of the specified node.
+     * Gets the number of children of the specified node which are matched by the given {@code NodeMatcher}. This is a
+     * more generic version of {@link #getChildrenCount(Object, String)}. It allows checking for arbitrary filter
+     * conditions.
      *
      * @param node the node
-     * @param index the index (0-based)
-     * @return the child with the given index
+     * @param matcher the {@code NodeMatcher}
+     * @param criterion the criterion to be passed to the {@code NodeMatcher}
+     * @param <C> the type of the criterion
+     * @return the number of matched children
      */
-    T getChild(T node, int index);
+    <C> int getMatchingChildrenCount(T node, NodeMatcher<C> matcher, C criterion);
+
+    /**
+     * Gets the parent of the specified node.
+     *
+     * @param node the node
+     * @return the parent node
+     */
+    T getParent(T node);
+
+    /**
+     * Gets the root node of the underlying hierarchy.
+     *
+     * @return the current root node
+     */
+    T getRootNode();
+
+    /**
+     * Gets the value of the specified node.
+     *
+     * @param node the node
+     * @return the value of this node
+     */
+    Object getValue(T node);
+
+    /**
+     * Returns a flag whether the passed in node has any attributes.
+     *
+     * @param node the node
+     * @return a flag whether this node has any attributes
+     */
+    boolean hasAttributes(T node);
 
     /**
      * Returns the index of the given child node in the list of children of its parent. This method is the opposite
@@ -107,58 +158,6 @@ public interface NodeHandler<T> {
     int indexOfChild(T parent, T child);
 
     /**
-     * Returns the number of children of the specified node with the given name. This method exists for performance reasons:
-     * for some node implementations it may be by far more efficient to count the children than to query a list of all
-     * children and determine its size. A concrete implementation can choose the most efficient way to determine the number
-     * of children. If a child name is passed in, only the children with this name are taken into account. If the name
-     * <b>null</b> is passed, the total number of children must be returned.
-     *
-     * @param node the node
-     * @param name the name of the children in question (can be <b>null</b> for all children)
-     * @return the number of the selected children
-     */
-    int getChildrenCount(T node, String name);
-
-    /**
-     * Returns the number of children of the specified node which are matched by the given {@code NodeMatcher}. This is a
-     * more generic version of {@link #getChildrenCount(Object, String)}. It allows checking for arbitrary filter
-     * conditions.
-     *
-     * @param node the node
-     * @param matcher the {@code NodeMatcher}
-     * @param criterion the criterion to be passed to the {@code NodeMatcher}
-     * @param <C> the type of the criterion
-     * @return the number of matched children
-     */
-    <C> int getMatchingChildrenCount(T node, NodeMatcher<C> matcher, C criterion);
-
-    /**
-     * Returns an unmodifiable set with the names of all attributes of the specified node.
-     *
-     * @param node the node
-     * @return a set with the names of all attributes of this node
-     */
-    Set<String> getAttributes(T node);
-
-    /**
-     * Returns a flag whether the passed in node has any attributes.
-     *
-     * @param node the node
-     * @return a flag whether this node has any attributes
-     */
-    boolean hasAttributes(T node);
-
-    /**
-     * Returns the value of the specified attribute from the given node. If a concrete {@code NodeHandler} supports
-     * attributes with multiple values, result might be a collection.
-     *
-     * @param node the node
-     * @param name the name of the attribute
-     * @return the value of this attribute
-     */
-    Object getAttributeValue(T node, String name);
-
-    /**
      * Checks whether the specified node is defined. Nodes are &quot;defined&quot; if they contain any data, e.g. a value,
      * or attributes, or defined children.
      *
@@ -168,9 +167,10 @@ public interface NodeHandler<T> {
     boolean isDefined(T node);
 
     /**
-     * Returns the root node of the underlying hierarchy.
+     * Returns the name of the specified node
      *
-     * @return the current root node
+     * @param node the node
+     * @return the name of this node
      */
-    T getRootNode();
+    String nodeName(T node);
 }

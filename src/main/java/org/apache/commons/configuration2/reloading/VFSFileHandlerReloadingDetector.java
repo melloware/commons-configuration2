@@ -55,6 +55,16 @@ public class VFSFileHandlerReloadingDetector extends FileHandlerReloadingDetecto
 
     /**
      * Creates a new instance of {@code VFSFileHandlerReloadingDetector} and initializes it with the given
+     * {@code FileHandler} object.
+     *
+     * @param handler the {@code FileHandler}
+     */
+    public VFSFileHandlerReloadingDetector(final FileHandler handler) {
+        super(handler);
+    }
+
+    /**
+     * Creates a new instance of {@code VFSFileHandlerReloadingDetector} and initializes it with the given
      * {@code FileHandler} object and the given refresh delay.
      *
      * @param handler the {@code FileHandler}
@@ -65,36 +75,7 @@ public class VFSFileHandlerReloadingDetector extends FileHandlerReloadingDetecto
     }
 
     /**
-     * Creates a new instance of {@code VFSFileHandlerReloadingDetector} and initializes it with the given
-     * {@code FileHandler} object.
-     *
-     * @param handler the {@code FileHandler}
-     */
-    public VFSFileHandlerReloadingDetector(final FileHandler handler) {
-        super(handler);
-    }
-
-    /**
-     * {@inheritDoc} This implementation uses Commons VFS to obtain a {@code FileObject} and read the date of the last
-     * modification.
-     */
-    @Override
-    protected long getLastModificationDate() {
-        final FileObject file = getFileObject();
-        try {
-            if (file == null || !file.exists()) {
-                return 0;
-            }
-
-            return file.getContent().getLastModifiedTime();
-        } catch (final FileSystemException ex) {
-            log.error("Unable to get last modified time for" + file.getName().getURI(), ex);
-            return 0;
-        }
-    }
-
-    /**
-     * Returns the file that is monitored by this strategy. Note that the return value can be <b>null </b> under some
+     * Gets the file that is monitored by this strategy. Note that the return value can be <b>null </b> under some
      * circumstances.
      *
      * @return the monitored file
@@ -115,6 +96,25 @@ public class VFSFileHandlerReloadingDetector extends FileHandlerReloadingDetecto
             final String msg = "Unable to monitor " + getFileHandler().getURL().toString();
             log.error(msg);
             throw new ConfigurationRuntimeException(msg, fse);
+        }
+    }
+
+    /**
+     * {@inheritDoc} This implementation uses Commons VFS to obtain a {@code FileObject} and read the date of the last
+     * modification.
+     */
+    @Override
+    protected long getLastModificationDate() {
+        final FileObject file = getFileObject();
+        try {
+            if (file == null || !file.exists()) {
+                return 0;
+            }
+
+            return file.getContent().getLastModifiedTime();
+        } catch (final FileSystemException ex) {
+            log.error("Unable to get last modified time for" + file.getName().getURI(), ex);
+            return 0;
         }
     }
 

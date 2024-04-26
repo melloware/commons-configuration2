@@ -16,27 +16,27 @@
  */
 package org.apache.commons.configuration2.builder;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
 
-import javax.xml.parsers.DocumentBuilder;
 import java.util.Map;
 
+import javax.xml.parsers.DocumentBuilder;
+
 import org.apache.commons.configuration2.beanutils.BeanHelper;
-import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.xml.sax.EntityResolver;
 
 /**
  * Test class for {@code XMLBuilderParametersImpl}.
- *
  */
 public class TestXMLBuilderParametersImpl {
     /** The parameters object to be tested. */
     private XMLBuilderParametersImpl params;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         params = new XMLBuilderParametersImpl();
     }
@@ -46,18 +46,17 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testBeanPropertiesAccess() throws Exception {
-        final EntityResolver resolver = EasyMock.createMock(EntityResolver.class);
-        final DocumentBuilder builder = EasyMock.createMock(DocumentBuilder.class);
-        EasyMock.replay(resolver, builder);
+        final EntityResolver resolver = mock(EntityResolver.class);
+        final DocumentBuilder builder = mock(DocumentBuilder.class);
         BeanHelper.setProperty(params, "throwExceptionOnMissing", Boolean.TRUE);
         BeanHelper.setProperty(params, "fileName", "test.xml");
         BeanHelper.setProperty(params, "entityResolver", resolver);
         BeanHelper.setProperty(params, "documentBuilder", builder);
-        assertEquals("Wrong file name", "test.xml", params.getFileHandler().getFileName());
+        assertEquals("test.xml", params.getFileHandler().getFileName());
         final Map<String, Object> paramsMap = params.getParameters();
-        assertEquals("Wrong exception flag", Boolean.TRUE, paramsMap.get("throwExceptionOnMissing"));
-        assertSame("Wrong resolver", resolver, paramsMap.get("entityResolver"));
-        assertSame("Wrong builder", builder, paramsMap.get("documentBuilder"));
+        assertEquals(Boolean.TRUE, paramsMap.get("throwExceptionOnMissing"));
+        assertSame(resolver, paramsMap.get("entityResolver"));
+        assertSame(builder, paramsMap.get("documentBuilder"));
     }
 
     /**
@@ -65,19 +64,19 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testInheritFrom() {
-        final EntityResolver resolver = EasyMock.createMock(EntityResolver.class);
-        final DocumentBuilder builder = EasyMock.createMock(DocumentBuilder.class);
+        final EntityResolver resolver = mock(EntityResolver.class);
+        final DocumentBuilder builder = mock(DocumentBuilder.class);
         params.setDocumentBuilder(builder).setEntityResolver(resolver).setSchemaValidation(true).setValidating(true);
         params.setThrowExceptionOnMissing(true);
         final XMLBuilderParametersImpl params2 = new XMLBuilderParametersImpl();
 
         params2.inheritFrom(params.getParameters());
         final Map<String, Object> parameters = params2.getParameters();
-        assertEquals("Exception flag not set", Boolean.TRUE, parameters.get("throwExceptionOnMissing"));
-        assertEquals("Entity resolver not set", resolver, parameters.get("entityResolver"));
-        assertEquals("Document builder not set", builder, parameters.get("documentBuilder"));
-        assertEquals("Validation flag not set", Boolean.TRUE, parameters.get("validating"));
-        assertEquals("Schema flag not set", Boolean.TRUE, parameters.get("schemaValidation"));
+        assertEquals(Boolean.TRUE, parameters.get("throwExceptionOnMissing"));
+        assertEquals(resolver, parameters.get("entityResolver"));
+        assertEquals(builder, parameters.get("documentBuilder"));
+        assertEquals(Boolean.TRUE, parameters.get("validating"));
+        assertEquals(Boolean.TRUE, parameters.get("schemaValidation"));
     }
 
     /**
@@ -85,10 +84,9 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testSetDocumentBuilder() {
-        final DocumentBuilder builder = EasyMock.createMock(DocumentBuilder.class);
-        EasyMock.replay(builder);
-        assertSame("Wrong result", params, params.setDocumentBuilder(builder));
-        assertSame("Builder not in parameters", builder, params.getParameters().get("documentBuilder"));
+        final DocumentBuilder builder = mock(DocumentBuilder.class);
+        assertSame(params, params.setDocumentBuilder(builder));
+        assertSame(builder, params.getParameters().get("documentBuilder"));
     }
 
     /**
@@ -96,11 +94,10 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testSetEntityResolver() {
-        final EntityResolver resolver = EasyMock.createMock(EntityResolver.class);
-        EasyMock.replay(resolver);
-        assertSame("Wrong result", params, params.setEntityResolver(resolver));
-        assertSame("Resolver not set", resolver, params.getEntityResolver());
-        assertSame("Resolver not in parameters", resolver, params.getParameters().get("entityResolver"));
+        final EntityResolver resolver = mock(EntityResolver.class);
+        assertSame(params, params.setEntityResolver(resolver));
+        assertSame(resolver, params.getEntityResolver());
+        assertSame(resolver, params.getParameters().get("entityResolver"));
     }
 
     /**
@@ -109,8 +106,8 @@ public class TestXMLBuilderParametersImpl {
     @Test
     public void testSetPublicID() {
         final String pubID = "testPublicID";
-        assertSame("Wrong result", params, params.setPublicID(pubID));
-        assertEquals("ID not in parameters", pubID, params.getParameters().get("publicID"));
+        assertSame(params, params.setPublicID(pubID));
+        assertEquals(pubID, params.getParameters().get("publicID"));
     }
 
     /**
@@ -118,8 +115,8 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testSetSchemaValidation() {
-        assertSame("Wrong result", params, params.setSchemaValidation(false));
-        assertEquals("Flag not in parameters", Boolean.FALSE, params.getParameters().get("schemaValidation"));
+        assertSame(params, params.setSchemaValidation(false));
+        assertEquals(Boolean.FALSE, params.getParameters().get("schemaValidation"));
     }
 
     /**
@@ -128,8 +125,8 @@ public class TestXMLBuilderParametersImpl {
     @Test
     public void testSetSystemID() {
         final String sysID = "testSystemID";
-        assertSame("Wrong result", params, params.setSystemID(sysID));
-        assertEquals("ID not in parameters", sysID, params.getParameters().get("systemID"));
+        assertSame(params, params.setSystemID(sysID));
+        assertEquals(sysID, params.getParameters().get("systemID"));
     }
 
     /**
@@ -137,7 +134,7 @@ public class TestXMLBuilderParametersImpl {
      */
     @Test
     public void testSetValidating() {
-        assertSame("Wrong result", params, params.setValidating(true));
-        assertEquals("Flag not in parameters", Boolean.TRUE, params.getParameters().get("validating"));
+        assertSame(params, params.setValidating(true));
+        assertEquals(Boolean.TRUE, params.getParameters().get("validating"));
     }
 }

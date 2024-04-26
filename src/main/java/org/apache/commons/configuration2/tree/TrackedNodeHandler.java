@@ -35,7 +35,7 @@ package org.apache.commons.configuration2.tree;
  *
  * @since 2.0
  */
-class TrackedNodeHandler extends AbstractImmutableNodeHandler {
+final class TrackedNodeHandler extends AbstractImmutableNodeHandler {
     /** The root node. */
     private final ImmutableNode rootNode;
 
@@ -54,20 +54,20 @@ class TrackedNodeHandler extends AbstractImmutableNodeHandler {
     }
 
     /**
-     * Returns the parent handler. This is the {@code NodeHandler} which is consulted for determining a node's parent node.
-     *
-     * @return the parent {@code NodeHandler}
-     */
-    public NodeHandler<ImmutableNode> getParentHandler() {
-        return parentHandler;
-    }
-
-    /**
      * {@inheritDoc} This implementation delegates to the handler with the parent mapping.
      */
     @Override
     public ImmutableNode getParent(final ImmutableNode node) {
         return getParentHandler().getParent(node);
+    }
+
+    /**
+     * Gets the parent handler. This is the {@code NodeHandler} which is consulted for determining a node's parent node.
+     *
+     * @return the parent {@code NodeHandler}
+     */
+    public NodeHandler<ImmutableNode> getParentHandler() {
+        return parentHandler;
     }
 
     /**

@@ -26,9 +26,9 @@ import org.apache.commons.jxpath.JXPathContext;
  * <p>
  * This class is used by {@link XPathExpressionEngine}. It simplifies testing.
  * </p>
- *
  */
 class XPathContextFactory {
+
     /**
      * Creates a new {@code JXPathContext} based on the passed in arguments.
      *

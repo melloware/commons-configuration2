@@ -17,7 +17,10 @@
 
 package org.apache.commons.configuration2.web;
 
-import java.util.Enumeration;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.util.Properties;
 
 import javax.servlet.Servlet;
@@ -28,16 +31,14 @@ import javax.servlet.http.HttpServlet;
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.TestAbstractConfiguration;
 import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
-import org.junit.Test;
-
-import com.mockobjects.servlet.MockServletConfig;
-import com.mockobjects.servlet.MockServletContext;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 
 /**
  * Test case for the {@link ServletContextConfiguration} class.
- *
  */
 public class TestServletContextConfiguration extends TestAbstractConfiguration {
+
     @Override
     protected AbstractConfiguration getConfiguration() {
         final Properties parameters = new Properties();
@@ -47,21 +48,11 @@ public class TestServletContextConfiguration extends TestAbstractConfiguration {
         parameters.setProperty("listesc", "value1\\,value2");
 
         // create a servlet context
-        final ServletContext context = new MockServletContext() {
-            @Override
-            public String getInitParameter(final String key) {
-                return parameters.getProperty(key);
-            }
-
-            @Override
-            public Enumeration<?> getInitParameterNames() {
-                return parameters.keys();
-            }
-        };
+        final ServletContext context = mockServletConfig(parameters);
 
         // create a servlet config
-        final MockServletConfig config = new MockServletConfig();
-        config.setServletContext(context);
+        final ServletConfig config = mock(ServletConfig.class);
+        when(config.getServletContext()).thenReturn(context);
 
         // create a servlet
         final Servlet servlet = new HttpServlet() {
@@ -84,25 +75,36 @@ public class TestServletContextConfiguration extends TestAbstractConfiguration {
     @Override
     protected AbstractConfiguration getEmptyConfiguration() {
         // create a servlet context
-        final ServletContext context = new MockServletContext() {
-            @Override
-            public Enumeration<?> getInitParameterNames() {
-                return new Properties().keys();
-            }
-        };
+        final ServletContext context = mockServletConfig(new Properties());
 
         return new ServletContextConfiguration(context);
     }
 
-    @Override
-    @Test(expected = UnsupportedOperationException.class)
-    public void testAddPropertyDirect() {
-        super.testAddPropertyDirect();
+    /**
+     * Creates a mocked {@link ServletConfig}.
+     *
+     * @param parameters the init parameters to use
+     * @return The created mock
+     */
+    private ServletContext mockServletConfig(final Properties parameters) {
+        final ServletContext context = mock(ServletContext.class);
+        when(context.getInitParameterNames()).thenAnswer(invocation -> parameters.keys());
+        when(context.getInitParameter(ArgumentMatchers.any())).thenAnswer(invocation -> {
+            final String name = invocation.getArgument(0, String.class);
+            return parameters.getProperty(name);
+        });
+        return context;
     }
 
     @Override
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
+    public void testAddPropertyDirect() {
+        assertThrows(UnsupportedOperationException.class, super::testAddPropertyDirect);
+    }
+
+    @Override
+    @Test
     public void testClearProperty() {
-        super.testClearProperty();
+        assertThrows(UnsupportedOperationException.class, super::testClearProperty);
     }
 }

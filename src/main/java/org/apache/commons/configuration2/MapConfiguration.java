@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
@@ -31,14 +32,14 @@ import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
  * A Map based Configuration.
  * </p>
  * <p>
- * This implementation of the {@code Configuration} interface is initialized with a {@code java.util.Map}. The methods
+ * This implementation of the {@code Configuration} interface is initialized with a {@link java.util.Map}. The methods
  * of the {@code Configuration} interface are implemented on top of the content of this map. The following storage
  * scheme is used:
  * </p>
  * <p>
  * Property keys are directly mapped to map keys, i.e. the {@code getProperty()} method directly performs a
  * {@code get()} on the map. Analogously, {@code setProperty()} or {@code addProperty()} operations write new data into
- * the map. If a value is added to an existing property, a {@code java.util.List} is created, which stores the values of
+ * the map. If a value is added to an existing property, a {@link java.util.List} is created, which stores the values of
  * this property.
  * </p>
  * <p>
@@ -74,6 +75,21 @@ import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
  * @since 1.1
  */
 public class MapConfiguration extends AbstractConfiguration implements Cloneable {
+    /**
+     * Helper method for converting the type of the {@code Properties} object to a supported map type. As stated by the
+     * comment of the constructor, we expect the {@code Properties} object to contain only String key; therefore, it is safe
+     * to do this cast.
+     *
+     * @param props the {@code Properties} to be copied
+     * @return a newly created map with all string keys of the properties
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> toMap(final Properties props) {
+        @SuppressWarnings("rawtypes")
+        final Map map = props;
+        return map;
+    }
+
     /** The Map decorated by this configuration. */
     protected Map<String, Object> map;
 
@@ -87,7 +103,7 @@ public class MapConfiguration extends AbstractConfiguration implements Cloneable
      * @param map the map
      */
     public MapConfiguration(final Map<String, ?> map) {
-        this.map = (Map<String, Object>) map;
+        this.map = (Map<String, Object>) Objects.requireNonNull(map, "map");
     }
 
     /**
@@ -100,47 +116,7 @@ public class MapConfiguration extends AbstractConfiguration implements Cloneable
      * @since 1.8
      */
     public MapConfiguration(final Properties props) {
-        map = convertPropertiesToMap(props);
-    }
-
-    /**
-     * Return the Map decorated by this configuration.
-     *
-     * @return the map this configuration is based onto
-     */
-    public Map<String, Object> getMap() {
-        return map;
-    }
-
-    /**
-     * Returns the flag whether trimming of property values is disabled.
-     *
-     * @return <b>true</b> if trimming of property values is disabled; <b>false</b> otherwise
-     * @since 1.7
-     */
-    public boolean isTrimmingDisabled() {
-        return trimmingDisabled;
-    }
-
-    /**
-     * Sets a flag whether trimming of property values is disabled. This flag is only evaluated if list splitting is
-     * enabled. Refer to the header comment for more information about list splitting and trimming.
-     *
-     * @param trimmingDisabled a flag whether trimming of property values should be disabled
-     * @since 1.7
-     */
-    public void setTrimmingDisabled(final boolean trimmingDisabled) {
-        this.trimmingDisabled = trimmingDisabled;
-    }
-
-    @Override
-    protected Object getPropertyInternal(final String key) {
-        final Object value = map.get(key);
-        if (value instanceof String) {
-            final Collection<String> list = getListDelimiterHandler().split((String) value, !isTrimmingDisabled());
-            return list.size() > 1 ? list : list.iterator().next();
-        }
-        return value;
+        map = toMap(Objects.requireNonNull(props));
     }
 
     @Override
@@ -164,28 +140,8 @@ public class MapConfiguration extends AbstractConfiguration implements Cloneable
     }
 
     @Override
-    protected boolean isEmptyInternal() {
-        return map.isEmpty();
-    }
-
-    @Override
-    protected boolean containsKeyInternal(final String key) {
-        return map.containsKey(key);
-    }
-
-    @Override
     protected void clearPropertyDirect(final String key) {
         map.remove(key);
-    }
-
-    @Override
-    protected Iterator<String> getKeysInternal() {
-        return map.keySet().iterator();
-    }
-
-    @Override
-    protected int sizeInternal() {
-        return map.size();
     }
 
     /**
@@ -211,19 +167,64 @@ public class MapConfiguration extends AbstractConfiguration implements Cloneable
         }
     }
 
+    @Override
+    protected boolean containsKeyInternal(final String key) {
+        return map.containsKey(key);
+    }
+
+    @Override
+    protected Iterator<String> getKeysInternal() {
+        return map.keySet().iterator();
+    }
+
     /**
-     * Helper method for converting the type of the {@code Properties} object to a supported map type. As stated by the
-     * comment of the constructor, we expect the {@code Properties} object to contain only String key; therefore, it is safe
-     * to do this cast.
+     * Gets the Map decorated by this configuration.
      *
-     * @param props the {@code Properties} to be copied
-     * @return a newly created map with all string keys of the properties
+     * @return the map this configuration is based onto
      */
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> convertPropertiesToMap(final Properties props) {
-        @SuppressWarnings("rawtypes")
-        final Map map = props;
+    public Map<String, Object> getMap() {
         return map;
+    }
+
+    @Override
+    protected Object getPropertyInternal(final String key) {
+        final Object value = map.get(key);
+        if (value instanceof String) {
+            final Collection<String> list = getListDelimiterHandler().split((String) value, !isTrimmingDisabled());
+            return list.size() > 1 ? list : list.iterator().next();
+        }
+        return value;
+    }
+
+    @Override
+    protected boolean isEmptyInternal() {
+        return map.isEmpty();
+    }
+
+    /**
+     * Returns the flag whether trimming of property values is disabled.
+     *
+     * @return <b>true</b> if trimming of property values is disabled; <b>false</b> otherwise
+     * @since 1.7
+     */
+    public boolean isTrimmingDisabled() {
+        return trimmingDisabled;
+    }
+
+    /**
+     * Sets a flag whether trimming of property values is disabled. This flag is only evaluated if list splitting is
+     * enabled. Refer to the header comment for more information about list splitting and trimming.
+     *
+     * @param trimmingDisabled a flag whether trimming of property values should be disabled
+     * @since 1.7
+     */
+    public void setTrimmingDisabled(final boolean trimmingDisabled) {
+        this.trimmingDisabled = trimmingDisabled;
+    }
+
+    @Override
+    protected int sizeInternal() {
+        return map.size();
     }
 
     /**

@@ -17,17 +17,18 @@
 
 package org.apache.commons.configuration2;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.MapType;
-import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.commons.configuration2.io.InputStreamSupport;
-import org.apache.commons.configuration2.tree.ImmutableNode;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.Map;
+
+import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.configuration2.io.InputStreamSupport;
+import org.apache.commons.configuration2.tree.ImmutableNode;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.MapType;
 
 /**
  * <p>
@@ -63,20 +64,6 @@ public class JSONConfiguration extends AbstractYAMLBasedConfiguration implements
         super(c);
     }
 
-    @Override
-    public void read(final Reader in) throws ConfigurationException {
-        try {
-            load(mapper.readValue(in, this.type));
-        } catch (final Exception e) {
-            rethrowException(e);
-        }
-    }
-
-    @Override
-    public void write(final Writer out) throws ConfigurationException, IOException {
-        this.mapper.writer().writeValue(out, constructMap(this.getNodeModel().getNodeHandler().getRootNode()));
-    }
-
     /**
      * Loads the configuration from the given input stream.
      *
@@ -90,6 +77,20 @@ public class JSONConfiguration extends AbstractYAMLBasedConfiguration implements
         } catch (final Exception e) {
             rethrowException(e);
         }
+    }
+
+    @Override
+    public void read(final Reader in) throws ConfigurationException {
+        try {
+            load(mapper.readValue(in, this.type));
+        } catch (final Exception e) {
+            rethrowException(e);
+        }
+    }
+
+    @Override
+    public void write(final Writer out) throws ConfigurationException, IOException {
+        this.mapper.writer().writeValue(out, constructMap(this.getNodeModel().getNodeHandler().getRootNode()));
     }
 
 }

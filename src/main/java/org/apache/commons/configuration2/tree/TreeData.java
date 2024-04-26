@@ -19,6 +19,8 @@ package org.apache.commons.configuration2.tree;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 /**
  * An internally used helper class for storing information about the managed node structure. An instance of this class
@@ -27,7 +29,29 @@ import java.util.Map;
  *
  * @since 2.0
  */
-class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHandler {
+final class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHandler {
+    /**
+     * Checks whether the passed in node is subject of a replacement by another one. If so, the other node is returned. This
+     * is done until a node is found which had not been replaced. Updating the parent mapping may be expensive for large
+     * node structures. Therefore, it initially remains constant, and a map with replacements is used. When querying a
+     * parent node, the replacement map has to be consulted whether the parent node is still valid.
+     *
+     * @param replace the replacement node
+     * @param mapping the replacement mapping
+     * @return the corresponding node according to the mapping
+     */
+    private static ImmutableNode handleReplacements(final ImmutableNode replace, final Map<ImmutableNode, ImmutableNode> mapping) {
+        ImmutableNode node = replace;
+        ImmutableNode org;
+        do {
+            org = mapping.get(node);
+            if (org != null) {
+                node = org;
+            }
+        } while (org != null);
+        return node;
+    }
+
     /** The root node of the tree. */
     private final ImmutableNode root;
 
@@ -68,13 +92,36 @@ class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHand
         referenceTracker = refTracker;
     }
 
-    @Override
-    public ImmutableNode getRootNode() {
-        return root;
+    /**
+     * Returns a copy of the mapping from nodes to their parents.
+     *
+     * @return the copy of the parent mapping
+     */
+    public Map<ImmutableNode, ImmutableNode> copyParentMapping() {
+        return new HashMap<>(parentMapping);
     }
 
     /**
-     * Returns the {@code NodeTracker}
+     * Returns a copy of the map storing the replaced nodes.
+     *
+     * @return the copy of the replacement mapping
+     */
+    public Map<ImmutableNode, ImmutableNode> copyReplacementMapping() {
+        return new HashMap<>(replacementMapping);
+    }
+
+    /**
+     * Creates the inverse replacement mapping.
+     *
+     * @param replacements the original replacement mapping
+     * @return the inverse replacement mapping
+     */
+    private Map<ImmutableNode, ImmutableNode> createInverseMapping(final Map<ImmutableNode, ImmutableNode> replacements) {
+        return replacements.entrySet().stream().collect(Collectors.toMap(Entry::getValue, Entry::getKey));
+    }
+
+    /**
+     * Gets the {@code NodeTracker}
      *
      * @return the {@code NodeTracker}
      */
@@ -83,16 +130,7 @@ class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHand
     }
 
     /**
-     * Returns the {@code ReferenceTracker}.
-     *
-     * @return the {@code ReferenceTracker}
-     */
-    public ReferenceTracker getReferenceTracker() {
-        return referenceTracker;
-    }
-
-    /**
-     * Returns the parent node of the specified node. Result is <b>null</b> for the root node. If the passed in node cannot
+     * Gets the parent node of the specified node. Result is <b>null</b> for the root node. If the passed in node cannot
      * be resolved, an exception is thrown.
      *
      * @param node the node in question
@@ -114,21 +152,33 @@ class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHand
     }
 
     /**
-     * Returns a copy of the mapping from nodes to their parents.
-     *
-     * @return the copy of the parent mapping
+     * {@inheritDoc} This implementation delegates to the reference tracker.
      */
-    public Map<ImmutableNode, ImmutableNode> copyParentMapping() {
-        return new HashMap<>(parentMapping);
+    @Override
+    public Object getReference(final ImmutableNode node) {
+        return getReferenceTracker().getReference(node);
     }
 
     /**
-     * Returns a copy of the map storing the replaced nodes.
+     * Gets the {@code ReferenceTracker}.
      *
-     * @return the copy of the replacement mapping
+     * @return the {@code ReferenceTracker}
      */
-    public Map<ImmutableNode, ImmutableNode> copyReplacementMapping() {
-        return new HashMap<>(replacementMapping);
+    public ReferenceTracker getReferenceTracker() {
+        return referenceTracker;
+    }
+
+    @Override
+    public ImmutableNode getRootNode() {
+        return root;
+    }
+
+    /**
+     * {@inheritDoc} This implementation delegates to the reference tracker.
+     */
+    @Override
+    public List<Object> removedReferences() {
+        return getReferenceTracker().getRemovedReferences();
     }
 
     /**
@@ -151,57 +201,5 @@ class TreeData extends AbstractImmutableNodeHandler implements ReferenceNodeHand
      */
     public TreeData updateReferenceTracker(final ReferenceTracker newTracker) {
         return new TreeData(root, parentMapping, replacementMapping, nodeTracker, newTracker);
-    }
-
-    /**
-     * {@inheritDoc} This implementation delegates to the reference tracker.
-     */
-    @Override
-    public Object getReference(final ImmutableNode node) {
-        return getReferenceTracker().getReference(node);
-    }
-
-    /**
-     * {@inheritDoc} This implementation delegates to the reference tracker.
-     */
-    @Override
-    public List<Object> removedReferences() {
-        return getReferenceTracker().getRemovedReferences();
-    }
-
-    /**
-     * Checks whether the passed in node is subject of a replacement by another one. If so, the other node is returned. This
-     * is done until a node is found which had not been replaced. Updating the parent mapping may be expensive for large
-     * node structures. Therefore, it initially remains constant, and a map with replacements is used. When querying a
-     * parent node, the replacement map has to be consulted whether the parent node is still valid.
-     *
-     * @param replace the replacement node
-     * @param mapping the replacement mapping
-     * @return the corresponding node according to the mapping
-     */
-    private static ImmutableNode handleReplacements(final ImmutableNode replace, final Map<ImmutableNode, ImmutableNode> mapping) {
-        ImmutableNode node = replace;
-        ImmutableNode org;
-        do {
-            org = mapping.get(node);
-            if (org != null) {
-                node = org;
-            }
-        } while (org != null);
-        return node;
-    }
-
-    /**
-     * Creates the inverse replacement mapping.
-     *
-     * @param replacements the original replacement mapping
-     * @return the inverse replacement mapping
-     */
-    private Map<ImmutableNode, ImmutableNode> createInverseMapping(final Map<ImmutableNode, ImmutableNode> replacements) {
-        final Map<ImmutableNode, ImmutableNode> inverseMapping = new HashMap<>();
-        for (final Map.Entry<ImmutableNode, ImmutableNode> e : replacements.entrySet()) {
-            inverseMapping.put(e.getValue(), e.getKey());
-        }
-        return inverseMapping;
     }
 }

@@ -44,14 +44,20 @@ import java.util.Map;
  * Implementation note: This class is intended to work in a concurrent environment. Instances are immutable. The
  * represented state can be updated by creating new instances which are then stored by the owning node model.
  * </p>
- *
  */
-class ReferenceTracker {
+final class ReferenceTracker {
     /** A map with reference data. */
     private final Map<ImmutableNode, Object> references;
 
     /** A list with the removed references. */
     private final List<Object> removedReferences;
+
+    /**
+     * Creates a new instance of {@code ReferenceTracker}. This instance does not yet contain any data about references.
+     */
+    public ReferenceTracker() {
+        this(Collections.<ImmutableNode, Object>emptyMap(), Collections.emptyList());
+    }
 
     /**
      * Creates a new instance of {@code ReferenceTracker} and sets the data to be managed. This constructor is used
@@ -66,13 +72,6 @@ class ReferenceTracker {
     }
 
     /**
-     * Creates a new instance of {@code ReferenceTracker}. This instance does not yet contain any data about references.
-     */
-    public ReferenceTracker() {
-        this(Collections.<ImmutableNode, Object>emptyMap(), Collections.emptyList());
-    }
-
-    /**
      * Adds all references stored in the passed in map to the managed references. A new instance is created managing this
      * new set of references.
      *
@@ -83,6 +82,25 @@ class ReferenceTracker {
         final Map<ImmutableNode, Object> newRefs = new HashMap<>(references);
         newRefs.putAll(refs);
         return new ReferenceTracker(newRefs, removedReferences);
+    }
+
+    /**
+     * Gets the reference object associated with the given node.
+     *
+     * @param node the node
+     * @return the reference object for this node or <b>null</b>
+     */
+    public Object getReference(final ImmutableNode node) {
+        return references.get(node);
+    }
+
+    /**
+     * Gets the list with removed references. This list is immutable.
+     *
+     * @return the list with removed references
+     */
+    public List<Object> getRemovedReferences() {
+        return Collections.unmodifiableList(removedReferences);
     }
 
     /**
@@ -129,24 +147,5 @@ class ReferenceTracker {
         }
 
         return this;
-    }
-
-    /**
-     * Returns the reference object associated with the given node.
-     *
-     * @param node the node
-     * @return the reference object for this node or <b>null</b>
-     */
-    public Object getReference(final ImmutableNode node) {
-        return references.get(node);
-    }
-
-    /**
-     * Returns the list with removed references. This list is immutable.
-     *
-     * @return the list with removed references
-     */
-    public List<Object> getRemovedReferences() {
-        return Collections.unmodifiableList(removedReferences);
     }
 }

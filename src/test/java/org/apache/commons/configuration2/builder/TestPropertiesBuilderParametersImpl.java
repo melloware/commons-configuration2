@@ -16,9 +16,10 @@
  */
 package org.apache.commons.configuration2.builder;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
 
 import java.util.Map;
 
@@ -27,19 +28,17 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.PropertiesConfigurationLayout;
 import org.apache.commons.configuration2.beanutils.BeanHelper;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code PropertiesBuilderParametersImpl}.
- *
  */
 public class TestPropertiesBuilderParametersImpl {
     /** The parameters object to be tested. */
     private PropertiesBuilderParametersImpl params;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         params = new PropertiesBuilderParametersImpl();
     }
@@ -49,15 +48,14 @@ public class TestPropertiesBuilderParametersImpl {
      */
     @Test
     public void testBeanPropertiesAccess() throws Exception {
-        final PropertiesConfiguration.IOFactory factory = EasyMock.createMock(PropertiesConfiguration.IOFactory.class);
-        EasyMock.replay(factory);
+        final PropertiesConfiguration.IOFactory factory = mock(PropertiesConfiguration.IOFactory.class);
         BeanHelper.setProperty(params, "IOFactory", factory);
         BeanHelper.setProperty(params, "throwExceptionOnMissing", Boolean.TRUE);
         BeanHelper.setProperty(params, "fileName", "test.properties");
-        assertEquals("Wrong file name", "test.properties", params.getFileHandler().getFileName());
+        assertEquals("test.properties", params.getFileHandler().getFileName());
         final Map<String, Object> paramsMap = params.getParameters();
-        assertEquals("Wrong exception flag", Boolean.TRUE, paramsMap.get("throwExceptionOnMissing"));
-        assertSame("Factory not set", factory, params.getParameters().get("IOFactory"));
+        assertEquals(Boolean.TRUE, paramsMap.get("throwExceptionOnMissing"));
+        assertSame(factory, params.getParameters().get("IOFactory"));
     }
 
     /**
@@ -65,19 +63,20 @@ public class TestPropertiesBuilderParametersImpl {
      */
     @Test
     public void testInheritFrom() {
-        final PropertiesConfiguration.IOFactory factory = EasyMock.createMock(PropertiesConfiguration.IOFactory.class);
-        final ConfigurationConsumer<ConfigurationException> includeListener = EasyMock.createMock(ConfigurationConsumer.class);
+        final PropertiesConfiguration.IOFactory factory = mock(PropertiesConfiguration.IOFactory.class);
+        @SuppressWarnings("unchecked")
+        final ConfigurationConsumer<ConfigurationException> includeListener = mock(ConfigurationConsumer.class);
         params.setIOFactory(factory).setIncludeListener(includeListener).setIncludesAllowed(false).setLayout(new PropertiesConfigurationLayout())
             .setThrowExceptionOnMissing(true);
         final PropertiesBuilderParametersImpl params2 = new PropertiesBuilderParametersImpl();
 
         params2.inheritFrom(params.getParameters());
         final Map<String, Object> parameters = params2.getParameters();
-        assertEquals("Exception flag not set", Boolean.TRUE, parameters.get("throwExceptionOnMissing"));
-        assertEquals("IncludeListener not set", includeListener, parameters.get("includeListener"));
-        assertEquals("IOFactory not set", factory, parameters.get("IOFactory"));
-        assertEquals("Include flag not set", Boolean.FALSE, parameters.get("includesAllowed"));
-        assertNull("Layout was copied", parameters.get("layout"));
+        assertEquals(Boolean.TRUE, parameters.get("throwExceptionOnMissing"));
+        assertEquals(includeListener, parameters.get("includeListener"));
+        assertEquals(factory, parameters.get("IOFactory"));
+        assertEquals(Boolean.FALSE, parameters.get("includesAllowed"));
+        assertNull(parameters.get("layout"));
     }
 
     /**
@@ -85,10 +84,10 @@ public class TestPropertiesBuilderParametersImpl {
      */
     @Test
     public void testSetIncludeListener() {
-        final ConfigurationConsumer<ConfigurationException> includeListener = EasyMock.createMock(ConfigurationConsumer.class);
-        EasyMock.replay(includeListener);
-        assertSame("Wrong result", params, params.setIncludeListener(includeListener));
-        assertSame("IncludeListener not set", includeListener, params.getParameters().get("includeListener"));
+        @SuppressWarnings("unchecked")
+        final ConfigurationConsumer<ConfigurationException> includeListener = mock(ConfigurationConsumer.class);
+        assertSame(params, params.setIncludeListener(includeListener));
+        assertSame(includeListener, params.getParameters().get("includeListener"));
     }
 
     /**
@@ -101,7 +100,7 @@ public class TestPropertiesBuilderParametersImpl {
             .configure(params.setIncludeListener(includeListener));
 
         final PropertiesConfiguration config = builder.getConfiguration();
-        assertEquals("Wrong IncludeListener", includeListener, config.getIncludeListener());
+        assertEquals(includeListener, config.getIncludeListener());
     }
 
     /**
@@ -109,8 +108,8 @@ public class TestPropertiesBuilderParametersImpl {
      */
     @Test
     public void testSetIncludesAllowed() {
-        assertSame("Wrong result", params, params.setIncludesAllowed(true));
-        assertEquals("Value not set", Boolean.TRUE, params.getParameters().get("includesAllowed"));
+        assertSame(params, params.setIncludesAllowed(true));
+        assertEquals(Boolean.TRUE, params.getParameters().get("includesAllowed"));
     }
 
     /**
@@ -118,10 +117,9 @@ public class TestPropertiesBuilderParametersImpl {
      */
     @Test
     public void testSetIOFactory() {
-        final PropertiesConfiguration.IOFactory factory = EasyMock.createMock(PropertiesConfiguration.IOFactory.class);
-        EasyMock.replay(factory);
-        assertSame("Wrong result", params, params.setIOFactory(factory));
-        assertSame("Factory not set", factory, params.getParameters().get("IOFactory"));
+        final PropertiesConfiguration.IOFactory factory = mock(PropertiesConfiguration.IOFactory.class);
+        assertSame(params, params.setIOFactory(factory));
+        assertSame(factory, params.getParameters().get("IOFactory"));
     }
 
     /**
@@ -134,7 +132,7 @@ public class TestPropertiesBuilderParametersImpl {
             .configure(params.setIOFactory(factory));
 
         final PropertiesConfiguration config = builder.getConfiguration();
-        assertEquals("Wrong IO factory", factory, config.getIOFactory());
+        assertEquals(factory, config.getIOFactory());
     }
 
     /**
@@ -143,7 +141,7 @@ public class TestPropertiesBuilderParametersImpl {
     @Test
     public void testSetLayout() {
         final PropertiesConfigurationLayout layout = new PropertiesConfigurationLayout();
-        assertSame("Wrong result", params, params.setLayout(layout));
-        assertSame("Layout not set", layout, params.getParameters().get("layout"));
+        assertSame(params, params.setLayout(layout));
+        assertSame(layout, params.getParameters().get("layout"));
     }
 }

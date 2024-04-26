@@ -16,9 +16,10 @@
  */
 package org.apache.commons.configuration2.builder.fluent;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.File;
 import java.net.URL;
@@ -35,12 +36,10 @@ import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
 import org.apache.commons.configuration2.builder.combined.CombinedConfigurationBuilder;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.plist.PropertyListConfiguration;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code Configurations}.
- *
  */
 public class TestConfigurations {
     /** Constant for the name of the test properties file. */
@@ -180,7 +179,7 @@ public class TestConfigurations {
     @Test
     public void testDefaultParameters() {
         final Configurations configs = new Configurations();
-        assertNotNull("No parameters", configs.getParameters());
+        assertNotNull(configs.getParameters());
     }
 
     /**
@@ -191,7 +190,7 @@ public class TestConfigurations {
         final Configurations configs = new Configurations();
         final File file = ConfigurationAssert.getTestFile(TEST_PROPERTIES);
         final FileBasedConfigurationBuilder<PropertiesConfiguration> builder = configs.fileBasedBuilder(PropertiesConfiguration.class, file);
-        assertEquals("Wrong file", file.toURI(), builder.getFileHandler().getFile().toURI());
+        assertEquals(file.toURI(), builder.getFileHandler().getFile().toURI());
     }
 
     /**
@@ -202,7 +201,7 @@ public class TestConfigurations {
         final Configurations configs = new Configurations();
         final String filePath = absolutePath(TEST_PROPERTIES);
         final FileBasedConfigurationBuilder<PropertiesConfiguration> builder = configs.fileBasedBuilder(PropertiesConfiguration.class, filePath);
-        assertEquals("Wrong path", filePath, builder.getFileHandler().getFileName());
+        assertEquals(filePath, builder.getFileHandler().getFileName());
     }
 
     /**
@@ -213,7 +212,7 @@ public class TestConfigurations {
         final Configurations configs = new Configurations();
         final URL url = ConfigurationAssert.getTestURL("test.properties");
         final FileBasedConfigurationBuilder<PropertiesConfiguration> builder = configs.fileBasedBuilder(PropertiesConfiguration.class, url);
-        assertEquals("Wrong URL", url, builder.getFileHandler().getURL());
+        assertEquals(url, builder.getFileHandler().getURL());
     }
 
     /**
@@ -313,7 +312,7 @@ public class TestConfigurations {
     public void testInitWithParameters() {
         final Parameters params = new Parameters();
         final Configurations configs = new Configurations(params);
-        assertSame("Wrong parameters", params, configs.getParameters());
+        assertSame(params, configs.getParameters());
     }
 
     /**
@@ -344,12 +343,7 @@ public class TestConfigurations {
     public void testPropertiesBuilderFromPathIncludeNotFoundFail() {
         final Configurations configs = new Configurations();
         final FileBasedConfigurationBuilder<PropertiesConfiguration> builder = configs.propertiesBuilder(absolutePath("include-not-found.properties"));
-        try {
-            builder.getConfiguration();
-            Assert.fail("Expected ConfigurationException");
-        } catch (final ConfigurationException e) {
-            // ignore
-        }
+        assertThrows(ConfigurationException.class, builder::getConfiguration);
     }
 
     /**
@@ -361,21 +355,8 @@ public class TestConfigurations {
         final Configurations configs = new Configurations();
         final String absPath = absolutePath("include-not-found.properties");
         final FileBasedConfigurationBuilder<PropertiesConfiguration> builderFail = configs.propertiesBuilder(absPath);
-        // Expect failure:
-        try {
-            builderFail.getConfiguration();
-            Assert.fail("Expected ConfigurationException");
-        } catch (final ConfigurationException e) {
-            // Ignore
-            // e.printStackTrace();
-        }
-        // Expect failure:
-        try {
-            configs.properties(absPath);
-        } catch (final ConfigurationException e) {
-            // Ignore
-            // e.printStackTrace();
-        }
+        assertThrows(ConfigurationException.class, builderFail::getConfiguration);
+        assertThrows(ConfigurationException.class, () -> configs.properties(absPath));
         {
             // Expect success:
             // @formatter:off

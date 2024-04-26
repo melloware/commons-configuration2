@@ -17,22 +17,23 @@
 
 package org.apache.commons.configuration2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class TestJNDIEnvironmentValues {
     private JNDIConfiguration conf;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         System.setProperty("java.naming.factory.initial", TestJNDIConfiguration.CONTEXT_FACTORY);
 
@@ -42,9 +43,9 @@ public class TestJNDIEnvironmentValues {
 
     @Test
     public void testClearProperty() {
-        assertNotNull("null short for the 'test.short' key", conf.getShort("test.short", null));
+        assertNotNull(conf.getShort("test.short", null));
         conf.clearProperty("test.short");
-        assertNull("'test.short' property not cleared", conf.getShort("test.short", null));
+        assertNull(conf.getShort("test.short", null));
     }
 
     @Test
@@ -58,13 +59,13 @@ public class TestJNDIEnvironmentValues {
         boolean found = false;
         final Iterator<String> it = conf.getKeys();
 
-        assertTrue("no key found", it.hasNext());
+        assertTrue(it.hasNext());
 
         while (it.hasNext() && !found) {
             found = "test.boolean".equals(it.next());
         }
 
-        assertTrue("'test.boolean' key not found", found);
+        assertTrue(found);
     }
 
     @Test
@@ -76,7 +77,7 @@ public class TestJNDIEnvironmentValues {
             found = "test.boolean".equals(it.next());
         }
 
-        assertTrue("'test.boolean' key not found", found);
+        assertTrue(found);
     }
 
     @Test
@@ -88,19 +89,19 @@ public class TestJNDIEnvironmentValues {
             found = "test.boolean".equals(it.next());
         }
 
-        assertTrue("'test.boolean' key not found", found);
+        assertTrue(found);
     }
 
     @Test
     public void testGetKeysWithUnknownPrefix() {
         // test for a unknown prefix
         final Iterator<String> it = conf.getKeys("foo.bar");
-        assertFalse("no key should be found", it.hasNext());
+        assertFalse(it.hasNext());
     }
 
-    @Test(expected = NoSuchElementException.class)
+    @Test
     public void testGetMissingKey() throws Exception {
-        conf.getString("test.imaginarykey");
+        assertThrows(NoSuchElementException.class, () -> conf.getString("test.imaginarykey"));
     }
 
     @Test
@@ -111,7 +112,7 @@ public class TestJNDIEnvironmentValues {
 
     @Test
     public void testIsEmpty() {
-        assertFalse("the configuration shouldn't be empty", conf.isEmpty());
+        assertFalse(conf.isEmpty());
     }
 
     @Test
@@ -130,6 +131,6 @@ public class TestJNDIEnvironmentValues {
 
     @Test
     public void testThrowExceptionOnMissing() {
-        assertTrue("Throw Exception Property is not set!", conf.isThrowExceptionOnMissing());
+        assertTrue(conf.isThrowExceptionOnMissing());
     }
 }

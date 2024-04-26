@@ -16,25 +16,24 @@
  */
 package org.apache.commons.configuration2.builder;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.io.FileHandler;
 import org.apache.commons.configuration2.reloading.FileHandlerReloadingDetector;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code DefaultReloadingDetectorFactory}.
- *
  */
 public class TestDefaultReloadingDetectorFactory {
     /** The factory to be tested. */
     private DefaultReloadingDetectorFactory factory;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         factory = new DefaultReloadingDetectorFactory();
     }
@@ -49,8 +48,8 @@ public class TestDefaultReloadingDetectorFactory {
         final Long refreshDelay = 10000L;
         params.setReloadingRefreshDelay(refreshDelay);
         final FileHandlerReloadingDetector detector = (FileHandlerReloadingDetector) factory.createReloadingDetector(handler, params);
-        assertSame("Wrong file handler", handler, detector.getFileHandler());
-        assertEquals("Wrong refresh delay", refreshDelay.longValue(), detector.getRefreshDelay());
+        assertSame(handler, detector.getFileHandler());
+        assertEquals(refreshDelay.longValue(), detector.getRefreshDelay());
     }
 
     /**
@@ -61,6 +60,6 @@ public class TestDefaultReloadingDetectorFactory {
         final FileHandler handler = new FileHandler();
         final FileBasedBuilderParametersImpl params = new FileBasedBuilderParametersImpl();
         final FileHandlerReloadingDetector detector = (FileHandlerReloadingDetector) factory.createReloadingDetector(handler, params);
-        assertTrue("No default refresh delay", detector.getRefreshDelay() != 0);
+        assertNotEquals(0, detector.getRefreshDelay());
     }
 }

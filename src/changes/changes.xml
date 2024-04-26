@@ -15,34 +15,168 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 -->
-<document>
+<document xmlns="http://maven.apache.org/changes/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/changes/1.0.0 http://maven.apache.org/xsd/changes-1.0.0.xsd">
   <properties>
     <title>Apache Commons Configuration Release Notes</title>
     <author email="dev@commons.apache.org">Apache Commons Community</author>
   </properties>
   <body>
-    <release version="2.9.0" date="TBD" description="Minor release with new features and updated dependencies.">
+    <release version="2.10.2" date="YYYY-MM-DD" description="Minor release with new features and updated dependencies; requires Java 8 or above.">
+      <!-- ADD -->
+      <action type="fix" issue="CONFIGURATION-844" dev="ggregory" due-to="Thomas Steiner, Gary Gregory">Add support for empty sections #408.</action>
       <!-- FIX -->
-      <action issue="CONFIGURATION-815" type="fix" dev="ggregory" due-to="Gary Gregory">
-        Replace optional Apache Log4j 1.2.17 with 2.18.0.
-      </action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if DataConfiguration.DataConfiguration(Configuration) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if XMLPropertiesConfiguration.XMLPropertiesConfiguration(Element) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if a SubsetConfiguration constructor is called with a null Configuration.</action>
+      <action type="fix" issue="CONFIGURATION-843" dev="ggregory" due-to="Gary Gregory">Methods should not be empty #393.</action>
+      <action type="fix" dev="ggregory" due-to="Heewon Lee, Gary Gregory">Guard MapConfiguration against null maps #381.</action> 
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if AppletConfiguration(Applet) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletConfiguration(Servlet) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletConfiguration(ServletConfig) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletContextConfiguration(Servlet) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletContextConfiguration(ServletContext) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletFilterConfiguration(FilterConfig) is called with null.</action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">Fail-fast with a NullPointerException if ServletRequestConfiguration(ServletRequest) is called with null.</action>
+      <!-- UPDATE -->
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump commons-logging:commons-logging from 1.3.0 to 1.3.1 #390.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump commons-io:commons-io from 2.15.1 to 2.16.1 #394, #400.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump org.apache.commons:commons-parent from 67 to 69 #396.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump slf4j.version from 2.0.12 to 2.0.13 #403.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump org.apache.commons:commons-text from 1.11.0 to 1.12.0 #404.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump spring.version from 5.3.33 to 5.3.34.</action>
+    </release>
+    <release version="2.10.1" date="2024-03-17" description="Minor release with new features and updated dependencies; requires Java 8 or above.">
+      <!-- FIX -->
+      <action type="fix" issue="CONFIGURATION-839" dev="ggregory" due-to="Bob Marinier, Gary Gregory">java.lang.module.FindException: Module servlet.api not found.</action>
+      <action type="fix" issue="CONFIGURATION-840" dev="ggregory" due-to="Bob Marinier, Gary Gregory">StackOverflowError adding property in AbstractListDelimiterHandler.flattenIterator().</action>
+      <action type="fix" issue="CONFIGURATION-841" dev="ggregory" due-to="Gary Gregory">StackOverflowError calling ListDelimiterHandler.flatten(Object, int) with a cyclical object tree.</action>
+      <!-- UPDATE -->
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump jackson-databind from 2.16.1 to 2.17.0 #378.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump log4j.version from 2.23.0 to 2.23.1 #379.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">Bump spring.version from 5.3.32 to 5.3.33 #380.</action>
+    </release>
+    <release version="2.10.0" date="2024-03-06" description="Minor release with new features and updated dependencies; requires Java 8 or above.">
+      <!-- FIX -->
+      <action dev="ggregory" type="fix" due-to="step-security-bot, Gary Gregory">[StepSecurity] ci: Harden GitHub Actions #307.</action>
+      <action dev="ggregory" type="fix" issue="CONFIGURATION-834" due-to="Keith Barlow, Gary Gregory">ConfirgurationPropertySource doesn't supply resolved values #309.</action>
+      <action dev="ggregory" type="fix" due-to="KeijoB, Gary Gregory">Take prefix delimiter into account when SubsetConfiguration.getKeysInternal() is called #300.</action>
+      <action dev="ggregory" type="fix" due-to="Heewon Lee, Gary Gregory">Guard ConfigurationMap against null configuration #355.</action>
+      <action dev="ggregory" type="fix" issue="CONFIGURATION-838" due-to="Ian Lynagh">Properties parser stack overflows on large single-key inputs #369.</action>
+      <action dev="ggregory" type="fix" due-to="Heewon Lee, Gary Gregory">DatabaseConfiguration.AbstractJdbcOperation.execute() throws NullPointerException when no data source is set #368.</action>
+      <!-- ADD -->
+      <action dev="ggregory" type="add" due-to="KeijoB, Gary Gregory">Add AbstractConfiguration.getKeysInternal(String, String) #300.</action>
+      <action dev="ggregory" type="add" due-to="KeijoB, Gary Gregory">Add ImmutableConfiguration.getKeys(String, String) #300.</action>
+      <action dev="ggregory" type="add" due-to="KeijoB, Gary Gregory">Add PrefixedKeysIterator.PrefixedKeysIterator(Iterator&lt;String%gt;, String, String) #300.</action>
+      <action dev="ggregory" type="add" due-to="Gary Gregory">Add Maven property project.build.outputTimestamp for build reproducibility.</action>
+      <action dev="ggregory" type="add" due-to="Heewon Lee">Guard PatternSubtreeConfigurationWrapper constructor against null #365.</action>
+      <!-- UPDATE -->
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump jackson-databind from 2.14.2 to 2.16.1 #297, #303, #326, #331, #340.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump commons-io:commons-io from 2.11.0 to 2.15.1.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump spring-* from 5.3.26 to 5.3.32.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump commons-parent from 57 to 67.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump commons-codec:commons-codec from 1.15 to 1.16.1.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump commons-lang3 from 3.11 to 3.14.0.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump org.yaml:snakeyaml from 2.0 to 2.2 #312, #315.</action>
+      <action type="update" dev="ggregory" due-to="Dependabot">Bump slf4j.version from 2.0.7 to 2.0.12 #358.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump org.apache.commons:commons-dbcp2 from 2.9.0 to 2.12.0.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump org.apache.commons:commons-pool2 from 2.11.1 to 2.12.0.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory, Dependabot">Bump org.apache.logging.log4j:log4j-1.2-* from 2.20.0 to 2.23.0 #334, #339, #367.</action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">Bump org.apache.commons:commons-text from 1.10.0 to 1.11.0.</action>
+      <action dev="ggregory" type="update" due-to="Gary Gregory">Bump commons-logging:commons-logging from 1.2 to 1.3.0.</action>
+    </release>
+    <release version="2.9.0" date="2023-03-25" description="Minor release with new features and updated dependencies; requires Java 8 or above.">
+      <!-- FIX -->
       <action issue="CONFIGURATION-799" type="fix" dev="ggregory" due-to="Jarek Sacha, Gary Gregory">
         CombinedConfiguration#getKeys() can throw NoSuchElementException.
       </action>
+      <action issue="CONFIGURATION-822" type="fix" dev="ggregory" due-to="Branislav Beňo, Gary Gregory, Bruno P. Kinoshita">
+        Fix ambiguity on the section determining #229.
+      </action>
+      <action type="fix" dev="ggregory" due-to="Arturo Bernal">
+        Use Java style array decelerations #244.
+      </action>
       <!-- ADD -->
-      <action issue="CONFIGURATION-799" type="fix" dev="ggregory" due-to="Xinshiyou, Gary Gregory">
+      <action issue="CONFIGURATION-799" type="add" dev="ggregory" due-to="Xinshiyou, Gary Gregory">
         Add DefaultConversionHandler#setListDelimiterHandler(ListDelimiterHandler).
       </action>
-      <!-- UPDATE -->
-      <action type="update" dev="ggregory" due-to="Dependabot">
-        Bump spotbugs-maven-plugin from 4.7.0.0 to 4.7.1.0 #193.
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">
+        Add ImmutableNode.stream().
       </action>
-      <action type="update" dev="ggregory" due-to="Dependabot">
-        Bump org.springframework:spring-* 5.3.21 -> 5.3.22.
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">
+        Avoid NullPointerException in org.apache.commons.configuration2.web.AppletConfiguration.getKeysInternal().
+      </action>
+      <action type="fix" dev="ggregory" due-to="Gary Gregory">
+        Fix JDBC prepared statements leak in org.apache.commons.configuration2.DatabaseConfiguration.clearPropertyDirect(String).
+      </action>
+      <!-- UPDATE -->
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump actions/cache from 3.0.8 to 3.0.10 #223, #225.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory, Dependabot">
+        Bump actions/checkout from 3 to 3.1.0 #224.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump actions/setup-java from 3 to 3.5.1.
+      </action>
+      <action issue="CONFIGURATION-815" type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump optional Apache Log4j 1.2.17 with 2.20.0.
+      </action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">
+        Bump spotbugs-maven-plugin from 4.7.0.0 to 4.7.3.0 #193, #195, #228, #237.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump spotbugs from 4.7.0 to 4.7.3.
+      </action>
+      <action type="update" dev="ggregory" due-to="Dependabot, Gary Gregory">
+        Bump org.springframework:spring-* from 5.3.21 to 5.3.26.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump junit-jupiter from 5.8.2 to 5.9.1 #197, #217.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot, Gary Gregory">
+        Bump mockito-core from 4.6.1 to 4.11.0 #200, #235, #249, #257, #259.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump slf4j.version from 1.7.36 to 2.0.7 #202, #210, #215, #238, #241, #291.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump maven-checkstyle-plugin from 3.1.2 to 3.2.0 #201.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump maven-javadoc-plugin from 3.4.0 to 3.4.1.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump maven-pmd-plugin 3.17.0 to 3.19.0.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump pmd from 6.47.0 to 6.53.0.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot, strangelookingnerd">
+        Bump snakeyaml from 1.30 to 2.0 #203, #212, #219, #282, #283.
+      </action>
+      <action type="update" dev="kinow" due-to="Gary Gregory">
+        Bump jackson-databind from 2.13.3 to 2.14.2 #227, #246, #274.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump spring.version from 5.3.22 to 5.3.23 #211.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot, Gary Gregory">
+        Bump commons-parent from 53 to 57 #216, #253, #299.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump log4j.version from 2.18.0 to 2.20.0 #213, #281.
+      </action>
+      <action type="update" dev="ggregory" due-to="Gary Gregory">
+        Bump japicmp-maven-plugin from 0.15.7 to 0.17.1.
+      </action>
+      <action type="update" dev="kinow" due-to="Dependabot">
+        Bump commons-text from 1.9 to 1.10.0 #221.
       </action>
     </release>
     <release version="2.8.0" date="2022-07-05"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 8 or above.">
        <!-- FIX -->
        <action issue="CONFIGURATION-753" type="fix" dev="mattjuntunen">
          Make interpolation of collections and arrays in ConfigurationInterpolator consistent with
@@ -95,7 +229,7 @@
        <action type="add" dev="ggregory" due-to="SethiPandi">
          Implement Iterable in ImmutableNode #74.
        </action>
-       <action issues="CONFIGURATION-794" type="update" dev="ggregory" due-to="Robin Jansohn, Gary Gregory, Rob Spoor">
+       <action issue="CONFIGURATION-794" type="update" dev="ggregory" due-to="Robin Jansohn, Gary Gregory, Rob Spoor">
          Unclosed file handle when reading config from JAR file URL.
          Add and use FileBasedBuilderProperties.setURL(URL, URLConnectionOptions).
        </action>
@@ -236,7 +370,7 @@
        </action>
     </release>
     <release version="2.7" date="2020-03-07"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 8 or above.">
       <action dev="ggregory" type="fix" issue="CONFIGURATION-761" due-to="Gary Gregory">
         Single argument DataConfiguration APIs always create empty arrays.
       </action>
@@ -297,7 +431,7 @@
     </release>
     
     <release version="2.6" date="2019-09-13"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 8 or above.">
       <action dev="ggregory" type="fix" issue="CONFIGURATION-750" due-to="Jason Pickens, Gary Gregory, Emmanuel Bourg">
         XMLPropertyListConfiguration cannot set arrays in the correct plist form.
       </action>
@@ -357,7 +491,7 @@
       </action>
     </release>
     <release version="2.5" date="2019-05-23"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 8 or above.">
       <action dev="ggregory" type="fix" issue="CONFIGURATION-731" due-to="Shuai Zhang, Gary Gregory">
         Allow user to specify the comments and separator chars.
       </action>
@@ -390,7 +524,7 @@
       </action>
     </release>
     <release version="2.4" date="2018-10-23"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 8 or above.">
       <action dev="oheger" type="fix" issue="CONFIGURATION-710" due-to="thc202">
         Fixed numerous typos in user guides.
       </action>
@@ -451,7 +585,7 @@
     </release>
 
     <release version="2.3" date="2018-08-04"
-             description="Minor release with new features and updated dependencies.">
+             description="Minor release with new features and updated dependencies; requires Java 7 or above.">
       <action dev="ggregory" type="update" issue="CONFIGURATION-707">
         Bump Spring from 4.3.14.RELEASE to 4.3.18.RELEASE.
       </action>

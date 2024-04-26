@@ -16,9 +16,9 @@
  */
 package org.apache.commons.configuration2;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.configuration2.convert.ListDelimiterHandler;
 import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
@@ -39,27 +39,6 @@ import org.w3c.dom.Element;
  * </p>
  */
 final class XMLListReference {
-    /** The wrapped XML element. */
-    private final Element element;
-
-    /**
-     * Private constructor. No instances can be created from other classes.
-     *
-     * @param e the associated element
-     */
-    private XMLListReference(final Element e) {
-        element = e;
-    }
-
-    /**
-     * Returns the associated element.
-     *
-     * @return the associated XML element
-     */
-    public Element getElement() {
-        return element;
-    }
-
     /**
      * Assigns an instance of this class as reference to the specified configuration node. This reference acts as a marker
      * indicating that this node is subject to extended list handling.
@@ -72,6 +51,40 @@ final class XMLListReference {
         if (refs != null) {
             refs.put(node, new XMLListReference(elem));
         }
+    }
+
+    /**
+     * Checks whether the specified node has an associated list reference. This marks the node as part of a list.
+     *
+     * @param node the node to be checked
+     * @param handler the reference handler
+     * @return a flag whether this node has a list reference
+     */
+    private static boolean hasListReference(final ImmutableNode node, final ReferenceNodeHandler handler) {
+        return handler.getReference(node) instanceof XMLListReference;
+    }
+
+    /**
+     * Checks whether the specified node is the first node of a list. This is needed because all items of the list are
+     * collected and stored as value of the first list node. Note: This method requires that the passed in node is a list
+     * node, so {@link #isListNode(ImmutableNode, ReferenceNodeHandler)} must have returned <strong>true</strong> for it.
+     *
+     * @param node the configuration node
+     * @param handler the reference node handler
+     * @return a flag whether this is the first node of a list
+     */
+    public static boolean isFirstListItem(final ImmutableNode node, final ReferenceNodeHandler handler) {
+        final ImmutableNode parent = handler.getParent(node);
+        ImmutableNode firstItem = null;
+        int idx = 0;
+        while (firstItem == null) {
+            final ImmutableNode child = handler.getChild(parent, idx);
+            if (nameEquals(node, child)) {
+                firstItem = child;
+            }
+            idx++;
+        }
+        return firstItem == node;
     }
 
     /**
@@ -102,29 +115,6 @@ final class XMLListReference {
     }
 
     /**
-     * Checks whether the specified node is the first node of a list. This is needed because all items of the list are
-     * collected and stored as value of the first list node. Note: This method requires that the passed in node is a list
-     * node, so {@link #isListNode(ImmutableNode, ReferenceNodeHandler)} must have returned <strong>true</strong> for it.
-     *
-     * @param node the configuration node
-     * @param handler the reference node handler
-     * @return a flag whether this is the first node of a list
-     */
-    public static boolean isFirstListItem(final ImmutableNode node, final ReferenceNodeHandler handler) {
-        final ImmutableNode parent = handler.getParent(node);
-        ImmutableNode firstItem = null;
-        int idx = 0;
-        while (firstItem == null) {
-            final ImmutableNode child = handler.getChild(parent, idx);
-            if (nameEquals(node, child)) {
-                firstItem = child;
-            }
-            idx++;
-        }
-        return firstItem == node;
-    }
-
-    /**
      * Constructs the concatenated string value of all items comprising the list the specified node belongs to. This method
      * is called when saving an {@link XMLConfiguration}. Then configuration nodes created for list items have to be
      * collected again and transformed into a string defining all list elements.
@@ -140,27 +130,13 @@ final class XMLListReference {
         // cannot be null if the current node is a list node
         final ImmutableNode parent = nodeHandler.getParent(node);
         final List<ImmutableNode> items = nodeHandler.getChildren(parent, node.getNodeName());
-        final List<Object> values = new ArrayList<>(items.size());
-        for (final ImmutableNode n : items) {
-            values.add(n.getValue());
-        }
+        final List<Object> values = items.stream().map(ImmutableNode::getValue).collect(Collectors.toList());
         try {
             return String.valueOf(delimiterHandler.escapeList(values, ListDelimiterHandler.NOOP_TRANSFORMER));
         } catch (final UnsupportedOperationException e) {
             throw new ConfigurationRuntimeException("List handling not supported by " + "the current ListDelimiterHandler! Make sure that the same delimiter "
-                + "handler is used for loading and saving the configuration.", e);
+                    + "handler is used for loading and saving the configuration.", e);
         }
-    }
-
-    /**
-     * Checks whether the specified node has an associated list reference. This marks the node as part of a list.
-     *
-     * @param node the node to be checked
-     * @param handler the reference handler
-     * @return a flag whether this node has a list reference
-     */
-    private static boolean hasListReference(final ImmutableNode node, final ReferenceNodeHandler handler) {
-        return handler.getReference(node) instanceof XMLListReference;
     }
 
     /**
@@ -172,5 +148,26 @@ final class XMLListReference {
      */
     private static boolean nameEquals(final ImmutableNode n1, final ImmutableNode n2) {
         return StringUtils.equals(n2.getNodeName(), n1.getNodeName());
+    }
+
+    /** The wrapped XML element. */
+    private final Element element;
+
+    /**
+     * Private constructor. No instances can be created from other classes.
+     *
+     * @param e the associated element
+     */
+    private XMLListReference(final Element e) {
+        element = e;
+    }
+
+    /**
+     * Gets the associated element.
+     *
+     * @return the associated XML element
+     */
+    public Element getElement() {
+        return element;
     }
 }

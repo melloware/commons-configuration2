@@ -16,18 +16,19 @@
  */
 package org.apache.commons.configuration2.builder;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
 
 import org.apache.commons.configuration2.event.ConfigurationEvent;
 import org.apache.commons.configuration2.event.EventListenerRegistrationData;
 import org.apache.commons.configuration2.event.EventListenerTestImpl;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code EventListenerParameters}.
- *
  */
 public class TestEventListenerParameters {
     /**
@@ -37,11 +38,11 @@ public class TestEventListenerParameters {
     public void testAddEventListener() {
         final EventListenerTestImpl listener = new EventListenerTestImpl(null);
         final EventListenerParameters parameters = new EventListenerParameters();
-        assertSame("Wrong result", parameters, parameters.addEventListener(ConfigurationEvent.ADD_PROPERTY, listener));
-        assertEquals("Wrong number of registrations", 1, parameters.getListeners().getRegistrations().size());
+        assertSame(parameters, parameters.addEventListener(ConfigurationEvent.ADD_PROPERTY, listener));
+        assertEquals(1, parameters.getListeners().getRegistrations().size());
         final EventListenerRegistrationData<?> reg = parameters.getListeners().getRegistrations().get(0);
-        assertEquals("Wrong event type", ConfigurationEvent.ADD_PROPERTY, reg.getEventType());
-        assertEquals("Wrong listener", listener, reg.getListener());
+        assertEquals(ConfigurationEvent.ADD_PROPERTY, reg.getEventType());
+        assertEquals(listener, reg.getListener());
     }
 
     /**
@@ -52,9 +53,8 @@ public class TestEventListenerParameters {
         final EventListenerRegistrationData<ConfigurationEvent> reg = new EventListenerRegistrationData<>(ConfigurationEvent.SET_PROPERTY,
             new EventListenerTestImpl(null));
         final EventListenerParameters parameters = new EventListenerParameters();
-        assertSame("Wrong result", parameters, parameters.addEventListener(reg));
-        assertEquals("Wrong number of registrations", 1, parameters.getListeners().getRegistrations().size());
-        assertEquals("Wrong registration", reg, parameters.getListeners().getRegistrations().get(0));
+        assertSame(parameters, parameters.addEventListener(reg));
+        assertEquals(Arrays.asList(reg), parameters.getListeners().getRegistrations());
     }
 
     /**
@@ -63,7 +63,7 @@ public class TestEventListenerParameters {
     @Test
     public void testGetParameters() {
         final EventListenerParameters parameters = new EventListenerParameters();
-        assertTrue("Got parameters", parameters.getParameters().isEmpty());
+        assertTrue(parameters.getParameters().isEmpty());
     }
 
     /**
@@ -72,6 +72,6 @@ public class TestEventListenerParameters {
     @Test
     public void testRegistrationsAfterCreation() {
         final EventListenerParameters parameters = new EventListenerParameters();
-        assertTrue("Got registrations", parameters.getListeners().getRegistrations().isEmpty());
+        assertTrue(parameters.getListeners().getRegistrations().isEmpty());
     }
 }

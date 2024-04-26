@@ -16,8 +16,9 @@
  */
 package org.apache.commons.configuration2.builder.combined;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.apache.commons.configuration2.TempDirUtils.newFile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -46,20 +47,18 @@ import org.apache.commons.configuration2.sync.ReadWriteSynchronizer;
 import org.apache.commons.configuration2.sync.Synchronizer;
 import org.apache.commons.configuration2.tree.MergeCombiner;
 import org.apache.commons.configuration2.tree.xpath.XPathExpressionEngine;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Test class for {@code ReloadingCombinedConfigurationBuilder} which actually accesses files to be reloaded.
- *
  */
 public class TestReloadingCombinedConfigurationBuilderFileBased {
     /**
      * A test builder class which always returns the same configuration.
      */
-    private static class ConstantConfigurationBuilder extends BasicConfigurationBuilder<BaseHierarchicalConfiguration> {
+    private static final class ConstantConfigurationBuilder extends BasicConfigurationBuilder<BaseHierarchicalConfiguration> {
         private final BaseHierarchicalConfiguration configuration;
 
         public ConstantConfigurationBuilder(final BaseHierarchicalConfiguration conf) {
@@ -76,7 +75,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
     /**
      * A thread class for testing concurrent reload operations.
      */
-    private static class ReloadThread extends Thread {
+    private static final class ReloadThread extends Thread {
         /** The builder to be queried. */
         private final ReloadingCombinedConfigurationBuilder builder;
 
@@ -156,9 +155,9 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
         }
     }
 
-    /** A helper object for managing temporary files. */
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    /** A folder for temporary files. */
+    @TempDir
+    public File tempFolder;
 
     /** A helper object for creating builder parameters. */
     private Parameters parameters;
@@ -180,7 +179,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
         final File src2 = writeReloadFile(null, 1, 1);
         writeDefinitionFile(defFile, src1);
         CombinedConfiguration config = builder.getConfiguration();
-        assertEquals("Wrong initial value", 0, config.getInt(testProperty(1)));
+        assertEquals(0, config.getInt(testProperty(1)));
 
         // No change definition file
         boolean reloaded = false;
@@ -191,12 +190,12 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
                 Thread.sleep(100);
             }
         }
-        assertTrue("Need for reload not detected", reloaded);
+        assertTrue(reloaded);
         config = builder.getConfiguration();
-        assertEquals("Wrong reloaded value", 1, config.getInt(testProperty(1)));
+        assertEquals(1, config.getInt(testProperty(1)));
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         parameters = new Parameters();
         builder = new ReloadingCombinedConfigurationBuilder();
@@ -221,10 +220,10 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
             .registerChildDefaultsHandler(FileBasedBuilderProperties.class,
                 new CopyObjectDefaultHandler(new FileBasedBuilderParametersImpl().setReloadingDetectorFactory(detectorFactory))));
 
-        assertEquals("Wrong initial value", "100", builder.getConfiguration().getString("/property[@name='config']/@value"));
+        assertEquals("100", builder.getConfiguration().getString("/property[@name='config']/@value"));
 
-        final Thread testThreads[] = new Thread[threadCount];
-        final int failures[] = new int[threadCount];
+        final Thread[] testThreads = new Thread[threadCount];
+        final int[] failures = new int[threadCount];
 
         for (int i = 0; i < testThreads.length; ++i) {
             testThreads[i] = new ReloadThread(builder, failures, i, loopCount);
@@ -236,7 +235,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
             testThreads[i].join();
             totalFailures += failures[i];
         }
-        assertEquals(totalFailures + " failures Occurred", 0, totalFailures);
+        assertEquals(0, totalFailures);
     }
 
     /**
@@ -244,7 +243,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
      */
     @Test
     public void testReloadDefinitionFileDefaultBuilder() throws ConfigurationException, IOException, InterruptedException {
-        final File defFile = folder.newFile();
+        final File defFile = newFile(tempFolder);
         builder.configure(parameters.combined().setDefinitionBuilderParameters(parameters.xml().setReloadingRefreshDelay(0L).setFile(defFile)));
         checkReloadDefinitionFile(defFile);
     }
@@ -255,7 +254,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
      */
     @Test
     public void testReloadDefinitionFileExplicitBuilder() throws ConfigurationException, IOException, InterruptedException {
-        final File defFile = folder.newFile();
+        final File defFile = newFile(tempFolder);
         builder.configure(parameters.combined().setDefinitionBuilder(
             new ReloadingFileBasedConfigurationBuilder<>(XMLConfiguration.class).configure(parameters.xml().setReloadingRefreshDelay(0L).setFile(defFile))));
         checkReloadDefinitionFile(defFile);
@@ -275,20 +274,20 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
         builder.configure(parameters.combined().setDefinitionBuilder(new ConstantConfigurationBuilder(defConf)).registerChildDefaultsHandler(
             FileBasedBuilderProperties.class, new CopyObjectDefaultHandler(new FileBasedBuilderParametersImpl().setReloadingDetectorFactory(detectorFactory))));
         CombinedConfiguration config = builder.getConfiguration();
-        assertEquals("Wrong initial value (1)", 0, config.getInt(testProperty(1)));
-        assertEquals("Wrong initial value (2)", 0, config.getInt(testProperty(2)));
+        assertEquals(0, config.getInt(testProperty(1)));
+        assertEquals(0, config.getInt(testProperty(2)));
 
         writeReloadFile(xmlConf1, 1, 1);
         builder.getReloadingController().checkForReloading(null);
         config = builder.getConfiguration();
-        assertEquals("Updated value not reloaded (1)", 1, config.getInt(testProperty(1)));
-        assertEquals("Value modified", 0, config.getInt(testProperty(2)));
+        assertEquals(1, config.getInt(testProperty(1)));
+        assertEquals(0, config.getInt(testProperty(2)));
 
         writeReloadFile(xmlConf2, 2, 2);
         builder.getReloadingController().checkForReloading(null);
         config = builder.getConfiguration();
-        assertEquals("Wrong value for config 1", 1, config.getInt(testProperty(1)));
-        assertEquals("Updated value not reloaded (2)", 2, config.getInt(testProperty(2)));
+        assertEquals(1, config.getInt(testProperty(1)));
+        assertEquals(2, config.getInt(testProperty(2)));
     }
 
     /**
@@ -327,7 +326,7 @@ public class TestReloadingCombinedConfigurationBuilderFileBased {
      * @throws IOException if an error occurs
      */
     private File writeReloadFile(final File f, final String content) throws IOException {
-        final File file = f != null ? f : folder.newFile();
+        final File file = f != null ? f : newFile(tempFolder);
         writeFile(file, content);
         return file;
     }

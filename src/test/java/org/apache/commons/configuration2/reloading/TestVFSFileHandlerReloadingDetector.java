@@ -17,8 +17,14 @@
 
 package org.apache.commons.configuration2.reloading;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.apache.commons.configuration2.TempDirUtils.newFile;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -32,14 +38,11 @@ import org.apache.commons.configuration2.io.VFSFileSystem;
 import org.apache.commons.vfs2.FileName;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
-import org.easymock.EasyMock;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Test case for the VFSFileHandlerReloadingDetector class.
- *
  */
 public class TestVFSFileHandlerReloadingDetector {
     /** Constant for the name of the test property. */
@@ -48,9 +51,9 @@ public class TestVFSFileHandlerReloadingDetector {
     /** Constant for the XML fragment to be written. */
     private static final String FMT_XML = "<configuration><" + PROPERTY + ">%s</" + PROPERTY + "></configuration>";
 
-    /** A helper object for creating temporary files. */
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    /** A folder for temporary files. */
+    @TempDir
+    public File tempFolder;
 
     /**
      * Tests whether the refresh delay is correctly passed to the base class.
@@ -59,8 +62,8 @@ public class TestVFSFileHandlerReloadingDetector {
     public void testGetRefreshDelay() throws Exception {
         final long delay = 20130325L;
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector(null, delay);
-        assertNotNull("No file handler was created", strategy.getFileHandler());
-        assertEquals("Wrong refresh delay", delay, strategy.getRefreshDelay());
+        assertNotNull(strategy.getFileHandler());
+        assertEquals(delay, strategy.getRefreshDelay());
     }
 
     /**
@@ -68,7 +71,7 @@ public class TestVFSFileHandlerReloadingDetector {
      */
     @Test
     public void testLastModificationDateExisting() throws IOException {
-        final File file = folder.newFile();
+        final File file = newFile(tempFolder);
         writeTestFile(file, "value1");
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector();
         strategy.getFileHandler().setFile(file);
@@ -77,7 +80,7 @@ public class TestVFSFileHandlerReloadingDetector {
         // Workaround OpenJDK 8 and 9 bug JDK-8177809
         // https://bugs.openjdk.java.net/browse/JDK-8177809
         final long expectedMillis = Files.getLastModifiedTime(file.toPath()).toMillis();
-        assertEquals("Wrong modification date", expectedMillis, modificationDate);
+        assertEquals(expectedMillis, modificationDate);
     }
 
     /**
@@ -85,21 +88,27 @@ public class TestVFSFileHandlerReloadingDetector {
      */
     @Test
     public void testLastModificationDateFileSystemEx() throws FileSystemException {
-        final FileObject fo = EasyMock.createMock(FileObject.class);
-        final FileName name = EasyMock.createMock(FileName.class);
-        EasyMock.expect(fo.exists()).andReturn(Boolean.TRUE);
-        EasyMock.expect(fo.getContent()).andThrow(new FileSystemException("error"));
-        EasyMock.expect(fo.getName()).andReturn(name);
-        EasyMock.expect(name.getURI()).andReturn("someURI");
-        EasyMock.replay(fo, name);
+        final FileObject fo = mock(FileObject.class);
+        final FileName name = mock(FileName.class);
+
+        when(fo.exists()).thenReturn(Boolean.TRUE);
+        when(fo.getContent()).thenThrow(new FileSystemException("error"));
+        when(fo.getName()).thenReturn(name);
+        when(name.getURI()).thenReturn("someURI");
+
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector() {
             @Override
             protected FileObject getFileObject() {
                 return fo;
             }
         };
-        assertEquals("Got a modification date", 0, strategy.getLastModificationDate());
-        EasyMock.verify(fo);
+        assertEquals(0, strategy.getLastModificationDate());
+
+        verify(fo).exists();
+        verify(fo).getContent();
+        verify(fo).getName();
+        verify(name).getURI();
+        verifyNoMoreInteractions(fo, name);
     }
 
     /**
@@ -112,7 +121,7 @@ public class TestVFSFileHandlerReloadingDetector {
         handler.setFileSystem(new VFSFileSystem());
         handler.setFile(file);
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector(handler);
-        assertEquals("Got a modification date", 0, strategy.getLastModificationDate());
+        assertEquals(0, strategy.getLastModificationDate());
     }
 
     /**
@@ -121,13 +130,13 @@ public class TestVFSFileHandlerReloadingDetector {
     @Test
     public void testLastModificationDateUndefinedHandler() {
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector();
-        assertEquals("Got a modification date", 0, strategy.getLastModificationDate());
+        assertEquals(0, strategy.getLastModificationDate());
     }
 
     /**
      * Tests a URI which cannot be resolved.
      */
-    @Test(expected = ConfigurationRuntimeException.class)
+    @Test
     public void testLastModificationDateUnresolvableURI() {
         final VFSFileHandlerReloadingDetector strategy = new VFSFileHandlerReloadingDetector() {
             @Override
@@ -137,7 +146,7 @@ public class TestVFSFileHandlerReloadingDetector {
         };
         strategy.getFileHandler().setFileSystem(new VFSFileSystem());
         strategy.getFileHandler().setFileName("test.xml");
-        strategy.getLastModificationDate();
+        assertThrows(ConfigurationRuntimeException.class, strategy::getLastModificationDate);
     }
 
     /**

@@ -16,8 +16,8 @@
  */
 package org.apache.commons.configuration2.tree;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 
@@ -26,13 +26,12 @@ import org.apache.commons.configuration2.ConfigurationAssert;
 import org.apache.commons.configuration2.XMLConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.io.FileHandler;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * A base class for testing combiner implementations. This base class provides some functionality for loading the test
  * configurations, which are to be combined. Concrete sub classes only need to create the correct combiner object.
- *
  */
 public abstract class AbstractCombinerTest {
     /** Constant for the first test configuration. */
@@ -71,7 +70,7 @@ public abstract class AbstractCombinerTest {
      */
     protected abstract NodeCombiner createCombiner();
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         combiner = createCombiner();
     }
@@ -81,7 +80,7 @@ public abstract class AbstractCombinerTest {
      */
     @Test
     public void testInit() {
-        assertTrue("Combiner has list nodes", combiner.getListNodes().isEmpty());
-        assertFalse("Node is list node", combiner.isListNode(NodeStructureHelper.createNode("test", null)));
+        assertTrue(combiner.getListNodes().isEmpty());
+        assertFalse(combiner.isListNode(NodeStructureHelper.createNode("test", null)));
     }
 }

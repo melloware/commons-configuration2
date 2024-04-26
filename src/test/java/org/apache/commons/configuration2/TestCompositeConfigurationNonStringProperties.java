@@ -18,17 +18,16 @@
 package org.apache.commons.configuration2;
 
 import org.apache.commons.configuration2.io.FileHandler;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * Test if non-string properties are handled correctly.
- *
  */
 public class TestCompositeConfigurationNonStringProperties extends BaseNonStringProperties {
     /** The File that we test with */
     private final String testProperties = ConfigurationAssert.getTestFile("test.properties").getAbsolutePath();
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         final CompositeConfiguration cc = new CompositeConfiguration();
         final PropertiesConfiguration pc = new PropertiesConfiguration();

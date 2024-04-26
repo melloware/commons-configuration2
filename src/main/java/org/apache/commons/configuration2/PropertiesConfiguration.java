@@ -24,6 +24,7 @@ import java.io.LineNumberReader;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -313,7 +314,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     public static class JupPropertiesReader extends PropertiesReader {
 
         /**
-         * Constructor.
+         * Constructs a new instance.
          *
          * @param reader A Reader.
          */
@@ -457,7 +458,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
 
         /** The regular expression to parse the key and the value of a property. */
         private static final Pattern PROPERTY_PATTERN = Pattern
-            .compile("(([\\S&&[^\\\\" + new String(SEPARATORS) + "]]|\\\\.)*)(\\s*(\\s+|[" + new String(SEPARATORS) + "])\\s*)?(.*)");
+            .compile("(([\\S&&[^\\\\" + new String(SEPARATORS) + "]]|\\\\.)*+)(\\s*(\\s+|[" + new String(SEPARATORS) + "])\\s*)?(.*)");
 
         /** Constant for the index of the group for the key. */
         private static final int IDX_KEY = 1;
@@ -467,28 +468,6 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
 
         /** Constant for the index of the group for the separator. */
         private static final int IDX_SEPARATOR = 3;
-
-        /** Stores the comment lines for the currently processed property. */
-        private final List<String> commentLines;
-
-        /** Stores the name of the last read property. */
-        private String propertyName;
-
-        /** Stores the value of the last read property. */
-        private String propertyValue;
-
-        /** Stores the property separator of the last read property. */
-        private String propertySeparator = DEFAULT_SEPARATOR;
-
-        /**
-         * Constructor.
-         *
-         * @param reader A Reader.
-         */
-        public PropertiesReader(final Reader reader) {
-            super(reader);
-            commentLines = new ArrayList<>();
-        }
 
         /**
          * Checks if the passed in line should be combined with the following. This is true, if the line ends with an odd number
@@ -528,8 +507,30 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
             return result;
         }
 
+        /** Stores the comment lines for the currently processed property. */
+        private final List<String> commentLines;
+
+        /** Stores the name of the last read property. */
+        private String propertyName;
+
+        /** Stores the value of the last read property. */
+        private String propertyValue;
+
+        /** Stores the property separator of the last read property. */
+        private String propertySeparator = DEFAULT_SEPARATOR;
+
         /**
-         * Returns the comment lines that have been read for the last property.
+         * Constructs a new instance.
+         *
+         * @param reader A Reader.
+         */
+        public PropertiesReader(final Reader reader) {
+            super(reader);
+            commentLines = new ArrayList<>();
+        }
+
+        /**
+         * Gets the comment lines that have been read for the last property.
          *
          * @return the comment lines for the last property returned by {@code readProperty()}
          * @since 1.3
@@ -539,7 +540,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the name of the last read property. This method can be called after {@link #nextProperty()} was invoked and
+         * Gets the name of the last read property. This method can be called after {@link #nextProperty()} was invoked and
          * its return value was <b>true</b>.
          *
          * @return the name of the last read property
@@ -550,7 +551,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the separator that was used for the last read property. The separator can be stored so that it can later be
+         * Gets the separator that was used for the last read property. The separator can be stored so that it can later be
          * restored when saving the configuration.
          *
          * @return the separator for the last read property
@@ -561,7 +562,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the value of the last read property. This method can be called after {@link #nextProperty()} was invoked and
+         * Gets the value of the last read property. This method can be called after {@link #nextProperty()} was invoked and
          * its return value was <b>true</b>.
          *
          * @return the value of the last read property
@@ -813,7 +814,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the current property separator.
+         * Gets the current property separator.
          *
          * @return the current property separator
          * @since 1.7
@@ -823,7 +824,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the delimiter handler for properties with multiple values. This object is used to escape property values so
+         * Gets the delimiter handler for properties with multiple values. This object is used to escape property values so
          * that they can be read in correctly the next time they are loaded.
          *
          * @return the delimiter handler for properties with multiple values
@@ -834,7 +835,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the global property separator.
+         * Gets the global property separator.
          *
          * @return the global property separator
          * @since 1.7
@@ -844,7 +845,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         }
 
         /**
-         * Returns the line separator.
+         * Gets the line separator.
          *
          * @return the line separator
          * @since 1.7
@@ -993,9 +994,9 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     public static final ConfigurationConsumer<ConfigurationException> NOOP_INCLUDE_LISTENER = e -> { /* noop */ };
 
     /**
-     * The default encoding (ISO-8859-1 as specified by http://java.sun.com/j2se/1.5.0/docs/api/java/util/Properties.html)
+     * The default encoding (ISO-8859-1 as specified by https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html)
      */
-    public static final String DEFAULT_ENCODING = "ISO-8859-1";
+    public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.name();
 
     /** Constant for the supported comment characters. */
     static final String COMMENT_CHARS = "#!";
@@ -1005,7 +1006,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
 
     /**
      * A string with special characters that need to be unescaped when reading a properties file.
-     * {@code java.util.Properties} escapes these characters when writing out a properties file.
+     * {@link java.util.Properties} escapes these characters when writing out a properties file.
      */
     private static final String UNESCAPE_CHARACTERS = ":#=!\\\'\"";
 
@@ -1036,29 +1037,6 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
 
     /** Constant for the length of a unicode literal. */
     private static final int UNICODE_LEN = 4;
-
-    /** Stores the layout object. */
-    private PropertiesConfigurationLayout layout;
-
-    /** The include listener for the special {@code "include"} key. */
-    private ConfigurationConsumer<ConfigurationException> includeListener;
-
-    /** The IOFactory for creating readers and writers. */
-    private IOFactory ioFactory;
-
-    /** The current {@code FileLocator}. */
-    private FileLocator locator;
-
-    /** Allow file inclusion or not */
-    private boolean includesAllowed = true;
-
-    /**
-     * Creates an empty PropertyConfiguration object which can be used to synthesize a new Properties file by adding values
-     * and then saving().
-     */
-    public PropertiesConfiguration() {
-        installLayout(createLayout());
-    }
 
     /**
      * Returns the number of trailing backslashes. This is sometimes needed for the correct handling of escape characters.
@@ -1255,6 +1233,29 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
         return out.toString();
     }
 
+    /** Stores the layout object. */
+    private PropertiesConfigurationLayout layout;
+
+    /** The include listener for the special {@code "include"} key. */
+    private ConfigurationConsumer<ConfigurationException> includeListener;
+
+    /** The IOFactory for creating readers and writers. */
+    private IOFactory ioFactory;
+
+    /** The current {@code FileLocator}. */
+    private FileLocator locator;
+
+    /** Allow file inclusion or not */
+    private boolean includesAllowed = true;
+
+    /**
+     * Creates an empty PropertyConfiguration object which can be used to synthesize a new Properties file by adding values
+     * and then saving().
+     */
+    public PropertiesConfiguration() {
+        installLayout(createLayout());
+    }
+
     /**
      * Creates a copy of this object.
      *
@@ -1279,7 +1280,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     }
 
     /**
-     * Returns the footer comment. This is a comment at the very end of the file.
+     * Gets the footer comment. This is a comment at the very end of the file.
      *
      * @return the footer comment
      * @since 2.0
@@ -1294,7 +1295,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     }
 
     /**
-     * Return the comment header.
+     * Gets the comment header.
      *
      * @return the comment header
      * @since 1.1
@@ -1319,7 +1320,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     }
 
     /**
-     * Returns the {@code IOFactory} to be used for creating readers and writers when loading or saving this configuration.
+     * Gets the {@code IOFactory} to be used for creating readers and writers when loading or saving this configuration.
      *
      * @return the {@code IOFactory}
      * @since 1.7
@@ -1329,7 +1330,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     }
 
     /**
-     * Returns the associated layout object.
+     * Gets the associated layout object.
      *
      * @return the associated layout object
      * @since 1.3
@@ -1515,7 +1516,7 @@ public class PropertiesConfiguration extends BaseConfiguration implements FileBa
     }
 
     /**
-     * Set the comment header.
+     * Sets the comment header.
      *
      * @param header the header to use
      * @since 1.1

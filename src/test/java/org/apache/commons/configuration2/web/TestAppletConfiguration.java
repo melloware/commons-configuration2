@@ -17,7 +17,7 @@
 
 package org.apache.commons.configuration2.web;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.applet.Applet;
 import java.util.Properties;
@@ -27,12 +27,11 @@ import org.apache.commons.configuration2.BaseConfiguration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.configuration2.TestAbstractConfiguration;
 import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test case for the {@link AppletConfiguration} class.
- *
  */
 public class TestAppletConfiguration extends TestAbstractConfiguration {
     /** A flag whether tests with an applet can be run. */
@@ -87,7 +86,7 @@ public class TestAppletConfiguration extends TestAbstractConfiguration {
      * support a GUI, don't allow creating an {@code Applet} instance. If we are in such an environment, some tests need to
      * behave differently or be completely dropped.
      */
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         try {
             new Applet();
@@ -102,12 +101,7 @@ public class TestAppletConfiguration extends TestAbstractConfiguration {
     @Test
     public void testAddPropertyDirect() {
         if (supportsApplet) {
-            try {
-                super.testAddPropertyDirect();
-                fail("addPropertyDirect should throw an UnsupportedException");
-            } catch (final UnsupportedOperationException e) {
-                // ok
-            }
+            assertThrows(UnsupportedOperationException.class, super::testAddPropertyDirect);
         }
     }
 
@@ -115,12 +109,7 @@ public class TestAppletConfiguration extends TestAbstractConfiguration {
     @Test
     public void testClearProperty() {
         if (supportsApplet) {
-            try {
-                super.testClearProperty();
-                fail("testClearProperty should throw an UnsupportedException");
-            } catch (final UnsupportedOperationException e) {
-                // ok
-            }
+            assertThrows(UnsupportedOperationException.class, super::testClearProperty);
         }
     }
 }

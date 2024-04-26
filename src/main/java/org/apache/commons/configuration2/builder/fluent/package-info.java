@@ -24,13 +24,12 @@
  * to create various parameters objects defining the settings for a configuration builder. These objects define
  * {@code set} methods allowing the manipulation of all available initialization properties.
  * </p>
- * <h3>Important note</h3>
+ * <strong>Important note</strong>
  * <p>
  * <strong>This package contains a number of interfaces that reflect the initialization parameters available for
  * supported configuration implementations. These interfaces are not intended to be implemented by client code! When new
  * features are added to the represented configuration classes corresponding new methods will be added to them. This can
  * happen even in minor releases.</strong>
  * </p>
- *
  */
 package org.apache.commons.configuration2.builder.fluent;

@@ -16,20 +16,19 @@
  */
 package org.apache.commons.configuration2.event;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code EventType}.
- *
  */
 public class TestEventType {
     /** The event type to be tested. */
     private EventType<Event> eventType;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         eventType = new EventType<>(null, "TEST");
     }
@@ -40,6 +39,6 @@ public class TestEventType {
     @Test
     public void testToString() {
         final String s = eventType.toString();
-        assertEquals("Wrong string", "EventType [ TEST ]", s);
+        assertEquals("EventType [ TEST ]", s);
     }
 }

@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.configuration2.CombinedConfiguration;
 import org.apache.commons.configuration2.Configuration;
@@ -123,23 +124,23 @@ import org.xml.sax.EntityResolver;
  * <th>Meaning</th>
  * </tr>
  * <tr>
- * <td valign="top">{@code config-name}</td>
+ * <td>{@code config-name}</td>
  * <td>Allows specifying a name for this configuration. This name can be used to obtain a reference to the configuration
  * from the resulting combined configuration (see below). It can also be passed to the {@link #getNamedBuilder(String)}
  * method.</td>
  * </tr>
  * <tr>
- * <td valign="top">{@code config-at}</td>
+ * <td>{@code config-at}</td>
  * <td>With this attribute an optional prefix can be specified for the properties of the corresponding
  * configuration.</td>
  * </tr>
  * <tr>
- * <td valign="top">{@code config-optional}</td>
+ * <td>{@code config-optional}</td>
  * <td>Declares a configuration source as optional. This means that errors that occur when creating the configuration
  * are ignored.</td>
  * </tr>
  * <tr>
- * <td valign="top">{@code config-reload}</td>
+ * <td>{@code config-reload}</td>
  * <td>Many configuration sources support a reloading mechanism. For those sources it is possible to enable reloading by
  * providing this attribute with a value of <strong>true</strong>.</td>
  * </tr>
@@ -206,6 +207,217 @@ import org.xml.sax.EntityResolver;
  * @since 1.3
  */
 public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<CombinedConfiguration> {
+    /**
+     * A data class for storing information about all configuration sources defined for a combined builder.
+     */
+    private final class ConfigurationSourceData {
+        /** A list with data for all builders for override configurations. */
+        private final List<ConfigurationDeclaration> overrideDeclarations;
+
+        /** A list with data for all builders for union configurations. */
+        private final List<ConfigurationDeclaration> unionDeclarations;
+
+        /** A list with the builders for override configurations. */
+        private final List<ConfigurationBuilder<? extends Configuration>> overrideBuilders;
+
+        /** A list with the builders for union configurations. */
+        private final List<ConfigurationBuilder<? extends Configuration>> unionBuilders;
+
+        /** A map for direct access to a builder by its name. */
+        private final Map<String, ConfigurationBuilder<? extends Configuration>> namedBuilders;
+
+        /** A collection with all child builders. */
+        private final Collection<ConfigurationBuilder<? extends Configuration>> allBuilders;
+
+        /** A listener for reacting on changes of sub builders. */
+        private final EventListener<ConfigurationBuilderEvent> changeListener;
+
+        /**
+         * Creates a new instance of {@code ConfigurationSourceData}.
+         */
+        public ConfigurationSourceData() {
+            overrideDeclarations = new ArrayList<>();
+            unionDeclarations = new ArrayList<>();
+            overrideBuilders = new ArrayList<>();
+            unionBuilders = new ArrayList<>();
+            namedBuilders = new HashMap<>();
+            allBuilders = new LinkedList<>();
+            changeListener = createBuilderChangeListener();
+        }
+
+        /**
+         * Creates a new configuration using the specified builder and adds it to the resulting combined configuration.
+         *
+         * @param ccResult the resulting combined configuration
+         * @param decl the current {@code ConfigurationDeclaration}
+         * @param builder the configuration builder
+         * @throws ConfigurationException if an error occurs
+         */
+        private void addChildConfiguration(final CombinedConfiguration ccResult, final ConfigurationDeclaration decl,
+            final ConfigurationBuilder<? extends Configuration> builder) throws ConfigurationException {
+            try {
+                ccResult.addConfiguration(builder.getConfiguration(), decl.getName(), decl.getAt());
+            } catch (final ConfigurationException cex) {
+                // ignore exceptions for optional configurations
+                if (!decl.isOptional()) {
+                    throw cex;
+                }
+            }
+        }
+
+        /**
+         * Returns a set with the names of all known named builders.
+         *
+         * @return the names of the available sub builders
+         */
+        public Set<String> builderNames() {
+            return namedBuilders.keySet();
+        }
+
+        /**
+         * Frees resources used by this object and performs clean up. This method is called when the owning builder is reset.
+         */
+        public void cleanUp() {
+            getChildBuilders().forEach(b -> b.removeEventListener(ConfigurationBuilderEvent.RESET, changeListener));
+            namedBuilders.clear();
+        }
+
+        /**
+         * Processes the declaration of configuration builder providers, creates the corresponding builder if necessary, obtains
+         * configurations, and adds them to the specified result configuration.
+         *
+         * @param ccResult the result configuration
+         * @param srcDecl the collection with the declarations of configuration sources to process
+         * @return a list with configuration builders
+         * @throws ConfigurationException if an error occurs
+         */
+        public List<ConfigurationBuilder<? extends Configuration>> createAndAddConfigurations(final CombinedConfiguration ccResult,
+            final List<ConfigurationDeclaration> srcDecl, final List<ConfigurationBuilder<? extends Configuration>> builders) throws ConfigurationException {
+            final boolean createBuilders = builders.isEmpty();
+            final List<ConfigurationBuilder<? extends Configuration>> newBuilders;
+            if (createBuilders) {
+                newBuilders = new ArrayList<>(srcDecl.size());
+            } else {
+                newBuilders = builders;
+            }
+
+            for (int i = 0; i < srcDecl.size(); i++) {
+                final ConfigurationBuilder<? extends Configuration> b;
+                if (createBuilders) {
+                    b = createConfigurationBuilder(srcDecl.get(i));
+                    newBuilders.add(b);
+                } else {
+                    b = builders.get(i);
+                }
+                addChildConfiguration(ccResult, srcDecl.get(i), b);
+            }
+
+            return newBuilders;
+        }
+
+        /**
+         * Creates a listener for builder change events. This listener is registered at all builders for child configurations.
+         */
+        private EventListener<ConfigurationBuilderEvent> createBuilderChangeListener() {
+            return event -> resetResult();
+        }
+
+        /**
+         * Creates a configuration builder based on a source declaration in the definition configuration.
+         *
+         * @param decl the current {@code ConfigurationDeclaration}
+         * @return the newly created builder
+         * @throws ConfigurationException if an error occurs
+         */
+        private ConfigurationBuilder<? extends Configuration> createConfigurationBuilder(final ConfigurationDeclaration decl) throws ConfigurationException {
+            final ConfigurationBuilderProvider provider = providerForTag(decl.getConfiguration().getRootElementName());
+            if (provider == null) {
+                throw new ConfigurationException("Unsupported configuration source: " + decl.getConfiguration().getRootElementName());
+            }
+
+            final ConfigurationBuilder<? extends Configuration> builder = provider.getConfigurationBuilder(decl);
+            if (decl.getName() != null) {
+                namedBuilders.put(decl.getName(), builder);
+            }
+            allBuilders.add(builder);
+            builder.addEventListener(ConfigurationBuilderEvent.RESET, changeListener);
+            return builder;
+        }
+
+        /**
+         * Finds the override configurations that are defined as top level elements in the configuration definition file. This
+         * method fetches the child elements of the root node and removes the nodes that represent other configuration sections.
+         * The remaining nodes are treated as definitions for override configurations.
+         *
+         * @param config the definition configuration
+         * @return a list with sub configurations for the top level override configurations
+         */
+        private List<? extends HierarchicalConfiguration<?>> fetchTopLevelOverrideConfigs(final HierarchicalConfiguration<?> config) {
+
+            final List<? extends HierarchicalConfiguration<?>> configs = config.childConfigurationsAt(null);
+            for (final Iterator<? extends HierarchicalConfiguration<?>> it = configs.iterator(); it.hasNext();) {
+                final String nodeName = it.next().getRootElementName();
+                for (final String element : CONFIG_SECTIONS) {
+                    if (element.equals(nodeName)) {
+                        it.remove();
+                        break;
+                    }
+                }
+            }
+            return configs;
+        }
+
+        /**
+         * Gets a collection containing the builders for all child configuration sources.
+         *
+         * @return the child configuration builders
+         */
+        public Collection<ConfigurationBuilder<? extends Configuration>> getChildBuilders() {
+            return allBuilders;
+        }
+
+        /**
+         * Gets the {@code ConfigurationBuilder} with the given name. If no such builder is defined in the definition
+         * configuration, result is <b>null</b>.
+         *
+         * @param name the name of the builder in question
+         * @return the builder with this name or <b>null</b>
+         */
+        public ConfigurationBuilder<? extends Configuration> getNamedBuilder(final String name) {
+            return namedBuilders.get(name);
+        }
+
+        /**
+         * Gets a collection with all configuration source declarations defined in the override section.
+         *
+         * @return the override configuration builders
+         */
+        public List<ConfigurationDeclaration> getOverrideSources() {
+            return overrideDeclarations;
+        }
+
+        /**
+         * Gets a collection with all configuration source declarations defined in the union section.
+         *
+         * @return the union configuration builders
+         */
+        public List<ConfigurationDeclaration> getUnionSources() {
+            return unionDeclarations;
+        }
+
+        /**
+         * Initializes this object from the specified definition configuration.
+         *
+         * @param config the definition configuration
+         * @throws ConfigurationException if an error occurs
+         */
+        public void initFromDefinitionConfiguration(final HierarchicalConfiguration<?> config) throws ConfigurationException {
+            overrideDeclarations.addAll(createDeclarations(fetchTopLevelOverrideConfigs(config)));
+            overrideDeclarations.addAll(createDeclarations(config.childConfigurationsAt(KEY_OVERRIDE)));
+            unionDeclarations.addAll(createDeclarations(config.childConfigurationsAt(KEY_UNION)));
+        }
+    }
+
     /**
      * Constant for the name of the additional configuration. If the configuration definition file contains an
      * {@code additional} section, a special union configuration is created and added under this name to the resulting
@@ -382,6 +594,35 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     /** A map with the default configuration builder providers. */
     private static final Map<String, ConfigurationBuilderProvider> DEFAULT_PROVIDERS_MAP;
 
+    static {
+        DEFAULT_PROVIDERS_MAP = createDefaultProviders();
+    }
+
+    /**
+     * Creates the map with the default configuration builder providers.
+     *
+     * @return the map with default providers
+     */
+    private static Map<String, ConfigurationBuilderProvider> createDefaultProviders() {
+        final Map<String, ConfigurationBuilderProvider> providers = new HashMap<>();
+        for (int i = 0; i < DEFAULT_TAGS.length; i++) {
+            providers.put(DEFAULT_TAGS[i], DEFAULT_PROVIDERS[i]);
+        }
+        return providers;
+    }
+
+    /**
+     * Initializes the list nodes of the node combiner for the given combined configuration. This information can be set in
+     * the header section of the configuration definition file for both the override and the union combiners.
+     *
+     * @param cc the combined configuration to initialize
+     * @param defConfig the definition configuration
+     * @param key the key for the list nodes
+     */
+    private static void initNodeCombinerListNodes(final CombinedConfiguration cc, final HierarchicalConfiguration<?> defConfig, final String key) {
+        defConfig.getList(key).forEach(listNode -> cc.getNodeCombiner().addListNode((String) listNode));
+    }
+
     /** The builder for the definition configuration. */
     private ConfigurationBuilder<? extends HierarchicalConfiguration<?>> definitionBuilder;
 
@@ -436,52 +677,19 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Returns the {@code ConfigurationBuilder} which creates the definition configuration.
+     * Adds a listener at the given definition builder which resets this builder when a reset of the definition builder
+     * happens. This way it is ensured that this builder produces a new combined configuration when its definition
+     * configuration changes.
      *
-     * @return the builder for the definition configuration
-     * @throws ConfigurationException if an error occurs
+     * @param defBuilder the definition builder
      */
-    public synchronized ConfigurationBuilder<? extends HierarchicalConfiguration<?>> getDefinitionBuilder() throws ConfigurationException {
-        if (definitionBuilder == null) {
-            definitionBuilder = setupDefinitionBuilder(getParameters());
-            addDefinitionBuilderChangeListener(definitionBuilder);
-        }
-        return definitionBuilder;
-    }
-
-    /**
-     * {@inheritDoc} This method is overridden to adapt the return type.
-     */
-    @Override
-    public CombinedConfigurationBuilder configure(final BuilderParameters... params) {
-        super.configure(params);
-        return this;
-    }
-
-    /**
-     * <p>
-     * Returns the configuration builder with the given name. With this method a builder of a child configuration which was
-     * given a name in the configuration definition file can be accessed directly.
-     * </p>
-     * <p>
-     * <strong>Important note:</strong> This method only returns a meaningful result after the result configuration has been
-     * created by calling {@code getConfiguration()}. If called before, always an exception is thrown.
-     * </p>
-     *
-     * @param name the name of the builder in question
-     * @return the child configuration builder with this name
-     * @throws ConfigurationException if information about named builders is not yet available or no builder with this name
-     *         exists
-     */
-    public synchronized ConfigurationBuilder<? extends Configuration> getNamedBuilder(final String name) throws ConfigurationException {
-        if (sourceData == null) {
-            throw new ConfigurationException("Information about child builders" + " has not been setup yet! Call getConfiguration() first.");
-        }
-        final ConfigurationBuilder<? extends Configuration> builder = sourceData.getNamedBuilder(name);
-        if (builder == null) {
-            throw new ConfigurationException("Builder cannot be resolved: " + name);
-        }
-        return builder;
+    private void addDefinitionBuilderChangeListener(final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder) {
+        defBuilder.addEventListener(ConfigurationBuilderEvent.RESET, event -> {
+            synchronized (this) {
+                reset();
+                definitionBuilder = defBuilder;
+            }
+        });
     }
 
     /**
@@ -506,54 +714,89 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * {@inheritDoc} This implementation resets some specific internal state of this builder.
+     * {@inheritDoc} This method is overridden to adapt the return type.
      */
     @Override
-    public synchronized void resetParameters() {
-        super.resetParameters();
-        definitionBuilder = null;
-        definitionConfiguration = null;
-        currentParameters = null;
-        currentXMLParameters = null;
+    public CombinedConfigurationBuilder configure(final BuilderParameters... params) {
+        super.configure(params);
+        return this;
+    }
 
-        if (sourceData != null) {
-            sourceData.cleanUp();
-            sourceData = null;
+    /**
+     * Creates and initializes a default {@code EntityResolver} if the definition configuration contains a corresponding
+     * declaration.
+     *
+     * @param config the definition configuration
+     * @param xmlParams the (already partly initialized) object with XML parameters; here the new resolver is to be stored
+     * @throws ConfigurationException if an error occurs
+     */
+    protected void configureEntityResolver(final HierarchicalConfiguration<?> config, final XMLBuilderParametersImpl xmlParams) throws ConfigurationException {
+        if (config.getMaxIndex(KEY_ENTITY_RESOLVER) == 0) {
+            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config, KEY_ENTITY_RESOLVER, true);
+            final EntityResolver resolver = (EntityResolver) fetchBeanHelper().createBean(decl, CatalogResolver.class);
+            final FileSystem fileSystem = xmlParams.getFileHandler().getFileSystem();
+            if (fileSystem != null) {
+                BeanHelper.setProperty(resolver, "fileSystem", fileSystem);
+            }
+            final String basePath = xmlParams.getFileHandler().getBasePath();
+            if (basePath != null) {
+                BeanHelper.setProperty(resolver, "baseDir", basePath);
+            }
+            final ConfigurationInterpolator ci = new ConfigurationInterpolator();
+            ci.registerLookups(fetchPrefixLookups());
+            BeanHelper.setProperty(resolver, "interpolator", ci);
+
+            xmlParams.setEntityResolver(resolver);
         }
     }
 
     /**
-     * Obtains the {@code ConfigurationBuilder} object which provides access to the configuration containing the definition
-     * of the combined configuration to create. If a definition builder is defined in the parameters, it is used. Otherwise,
-     * we check whether the combined builder parameters object contains a parameters object for the definition builder. If
-     * this is the case, a builder for an {@code XMLConfiguration} is created and configured with this object. As a last
-     * resort, it is looked for a {@link FileBasedBuilderParametersImpl} object in the properties. If found, also a XML
-     * configuration builder is created which loads this file. Note: This method is called from a synchronized block.
+     * Creates the {@code CombinedConfiguration} for the configuration sources in the {@code &lt;additional&gt;} section.
+     * This method is called when the builder constructs the final configuration. It creates a new
+     * {@code CombinedConfiguration} and initializes some properties from the result configuration.
      *
-     * @param params the current parameters for this builder
-     * @return the builder for the definition configuration
+     * @param resultConfig the result configuration (this is the configuration that will be returned by the builder)
+     * @return the {@code CombinedConfiguration} for the additional configuration sources
+     * @since 1.7
+     */
+    protected CombinedConfiguration createAdditionalsConfiguration(final CombinedConfiguration resultConfig) {
+        final CombinedConfiguration addConfig = new CombinedConfiguration(new UnionCombiner());
+        addConfig.setListDelimiterHandler(resultConfig.getListDelimiterHandler());
+        return addConfig;
+    }
+
+    /**
+     * Creates {@code ConfigurationDeclaration} objects for the specified configurations.
+     *
+     * @param configs the list with configurations
+     * @return a collection with corresponding declarations
+     */
+    private Collection<ConfigurationDeclaration> createDeclarations(final Collection<? extends HierarchicalConfiguration<?>> configs) {
+        return configs.stream().map(c -> new ConfigurationDeclaration(this, c)).collect(Collectors.toList());
+    }
+
+    /**
+     * {@inheritDoc} This implementation evaluates the {@code result} property of the definition configuration. It creates a
+     * combined bean declaration with both the properties specified in the definition file and the properties defined as
+     * initialization parameters.
+     */
+    @Override
+    protected BeanDeclaration createResultDeclaration(final Map<String, Object> params) throws ConfigurationException {
+        final BeanDeclaration paramsDecl = super.createResultDeclaration(params);
+        final XMLBeanDeclaration resultDecl = new XMLBeanDeclaration(getDefinitionConfiguration(), KEY_RESULT, true, CombinedConfiguration.class.getName());
+        return new CombinedBeanDeclaration(resultDecl, paramsDecl);
+    }
+
+    /**
+     * Creates the data object for configuration sources and the corresponding builders.
+     *
+     * @return the newly created data object
      * @throws ConfigurationException if an error occurs
      */
-    protected ConfigurationBuilder<? extends HierarchicalConfiguration<?>> setupDefinitionBuilder(final Map<String, Object> params)
-        throws ConfigurationException {
-        final CombinedBuilderParametersImpl cbParams = CombinedBuilderParametersImpl.fromParameters(params);
-        if (cbParams != null) {
-            final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder = cbParams.getDefinitionBuilder();
-            if (defBuilder != null) {
-                return defBuilder;
-            }
-
-            if (cbParams.getDefinitionBuilderParameters() != null) {
-                return createXMLDefinitionBuilder(cbParams.getDefinitionBuilderParameters());
-            }
-        }
-
-        final BuilderParameters fileParams = FileBasedBuilderParametersImpl.fromParameters(params);
-        if (fileParams != null) {
-            return createXMLDefinitionBuilder(fileParams);
-        }
-
-        throw new ConfigurationException("No builder for configuration definition specified!");
+    private ConfigurationSourceData createSourceData() throws ConfigurationException {
+        final ConfigurationSourceData result = new ConfigurationSourceData();
+        result.initFromDefinitionConfiguration(getDefinitionConfiguration());
+        return result;
     }
 
     /**
@@ -570,7 +813,64 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Returns the configuration containing the definition of the combined configuration to be created. This method only
+     * Returns a map with the current prefix lookup objects. This map is obtained from the {@code ConfigurationInterpolator}
+     * of the configuration under construction.
+     *
+     * @return the map with current prefix lookups (may be <b>null</b>)
+     */
+    private Map<String, ? extends Lookup> fetchPrefixLookups() {
+        final CombinedConfiguration cc = getConfigurationUnderConstruction();
+        return cc != null ? cc.getInterpolator().getLookups() : null;
+    }
+
+    /**
+     * Gets the current base path of this configuration builder. This is used for instance by all file-based child
+     * configurations.
+     *
+     * @return the base path
+     */
+    private String getBasePath() {
+        return currentXMLParameters.getFileHandler().getBasePath();
+    }
+
+    /**
+     * Gets a collection with the builders for all child configuration sources. This method can be used by derived
+     * classes providing additional functionality on top of the declared configuration sources. It only returns a defined
+     * value during construction of the result configuration instance.
+     *
+     * @return a collection with the builders for child configuration sources
+     */
+    protected synchronized Collection<ConfigurationBuilder<? extends Configuration>> getChildBuilders() {
+        return sourceData.getChildBuilders();
+    }
+
+    /**
+     * Gets the configuration object that is currently constructed. This method can be called during construction of the
+     * result configuration. It is intended for internal usage, e.g. some specialized builder providers need access to this
+     * configuration to perform advanced initialization.
+     *
+     * @return the configuration that us currently under construction
+     */
+    CombinedConfiguration getConfigurationUnderConstruction() {
+        return currentConfiguration;
+    }
+
+    /**
+     * Gets the {@code ConfigurationBuilder} which creates the definition configuration.
+     *
+     * @return the builder for the definition configuration
+     * @throws ConfigurationException if an error occurs
+     */
+    public synchronized ConfigurationBuilder<? extends HierarchicalConfiguration<?>> getDefinitionBuilder() throws ConfigurationException {
+        if (definitionBuilder == null) {
+            definitionBuilder = setupDefinitionBuilder(getParameters());
+            addDefinitionBuilderChangeListener(definitionBuilder);
+        }
+        return definitionBuilder;
+    }
+
+    /**
+     * Gets the configuration containing the definition of the combined configuration to be created. This method only
      * returns a defined result during construction of the result configuration. The definition configuration is obtained
      * from the definition builder at first access and then stored temporarily to ensure that during result construction
      * always the same configuration instance is used. (Otherwise, it would be possible that the definition builder returns
@@ -587,26 +887,193 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Returns a collection with the builders for all child configuration sources. This method can be used by derived
-     * classes providing additional functionality on top of the declared configuration sources. It only returns a defined
-     * value during construction of the result configuration instance.
+     * <p>
+     * Gets the configuration builder with the given name. With this method a builder of a child configuration which was
+     * given a name in the configuration definition file can be accessed directly.
+     * </p>
+     * <p>
+     * <strong>Important note:</strong> This method only returns a meaningful result after the result configuration has been
+     * created by calling {@code getConfiguration()}. If called before, always an exception is thrown.
+     * </p>
      *
-     * @return a collection with the builders for child configuration sources
+     * @param name the name of the builder in question
+     * @return the child configuration builder with this name
+     * @throws ConfigurationException if information about named builders is not yet available or no builder with this name
+     *         exists
      */
-    protected synchronized Collection<ConfigurationBuilder<? extends Configuration>> getChildBuilders() {
-        return sourceData.getChildBuilders();
+    public synchronized ConfigurationBuilder<? extends Configuration> getNamedBuilder(final String name) throws ConfigurationException {
+        if (sourceData == null) {
+            throw new ConfigurationException("Information about child builders" + " has not been setup yet! Call getConfiguration() first.");
+        }
+        final ConfigurationBuilder<? extends Configuration> builder = sourceData.getNamedBuilder(name);
+        if (builder == null) {
+            throw new ConfigurationException("Builder cannot be resolved: " + name);
+        }
+        return builder;
     }
 
     /**
-     * {@inheritDoc} This implementation evaluates the {@code result} property of the definition configuration. It creates a
-     * combined bean declaration with both the properties specified in the definition file and the properties defined as
-     * initialization parameters.
+     * Obtains the data object for the configuration sources and the corresponding builders. This object is created on first
+     * access and reset when the definition builder sends a change event. This method is called in a synchronized block.
+     *
+     * @return the object with information about configuration sources
+     * @throws ConfigurationException if an error occurs
      */
-    @Override
-    protected BeanDeclaration createResultDeclaration(final Map<String, Object> params) throws ConfigurationException {
-        final BeanDeclaration paramsDecl = super.createResultDeclaration(params);
-        final XMLBeanDeclaration resultDecl = new XMLBeanDeclaration(getDefinitionConfiguration(), KEY_RESULT, true, CombinedConfiguration.class.getName());
-        return new CombinedBeanDeclaration(resultDecl, paramsDecl);
+    private ConfigurationSourceData getSourceData() throws ConfigurationException {
+        if (sourceData == null) {
+            if (currentParameters == null) {
+                setUpCurrentParameters();
+                setUpCurrentXMLParameters();
+            }
+            sourceData = createSourceData();
+        }
+        return sourceData;
+    }
+
+    /**
+     * Initializes a bean using the current {@code BeanHelper}. This is needed by builder providers when the configuration
+     * objects for sub builders are constructed.
+     *
+     * @param bean the bean to be initialized
+     * @param decl the {@code BeanDeclaration}
+     */
+    void initBean(final Object bean, final BeanDeclaration decl) {
+        fetchBeanHelper().initBean(bean, decl);
+    }
+
+    /**
+     * Initializes basic builder parameters for a child configuration with default settings set for this builder. This
+     * implementation ensures that all {@code Lookup} objects are propagated to child configurations and interpolation is
+     * setup correctly.
+     *
+     * @param params the parameters object
+     */
+    private void initChildBasicParameters(final BasicBuilderParameters params) {
+        params.setPrefixLookups(fetchPrefixLookups());
+        params.setParentInterpolator(parentInterpolator);
+        if (currentParameters.isInheritSettings()) {
+            params.inheritFrom(getParameters());
+        }
+    }
+
+    /**
+     * Initializes a parameters object for a child builder. This combined configuration builder has a bunch of properties
+     * which may be inherited by child configurations, e.g. the base path, the file system, etc. While processing the
+     * builders for child configurations, this method is called for each parameters object for a child builder. It
+     * initializes some properties of the passed in parameters objects which are derived from this parent builder.
+     *
+     * @param params the parameters object to be initialized
+     */
+    protected void initChildBuilderParameters(final BuilderParameters params) {
+        initDefaultChildParameters(params);
+
+        if (params instanceof BasicBuilderParameters) {
+            initChildBasicParameters((BasicBuilderParameters) params);
+        }
+        if (params instanceof XMLBuilderProperties<?>) {
+            initChildXMLParameters((XMLBuilderProperties<?>) params);
+        }
+        if (params instanceof FileBasedBuilderProperties<?>) {
+            initChildFileBasedParameters((FileBasedBuilderProperties<?>) params);
+        }
+        if (params instanceof CombinedBuilderParametersImpl) {
+            initChildCombinedParameters((CombinedBuilderParametersImpl) params);
+        }
+    }
+
+    /**
+     * Initializes a parameters object for a combined configuration builder with properties already set for this parent
+     * builder. This implementation deals only with a subset of properties. Other properties are already handled by the
+     * specialized builder provider.
+     *
+     * @param params the parameters object
+     */
+    private void initChildCombinedParameters(final CombinedBuilderParametersImpl params) {
+        params.registerMissingProviders(currentParameters);
+        params.setBasePath(getBasePath());
+    }
+
+    /**
+     * Initializes the event listeners of the specified builder from this object. This method is used to inherit all
+     * listeners from a parent builder.
+     *
+     * @param dest the destination builder object which is to be initialized
+     */
+    void initChildEventListeners(final BasicConfigurationBuilder<? extends Configuration> dest) {
+        copyEventListeners(dest);
+    }
+
+    /**
+     * Initializes a parameters object for a file-based configuration with properties already set for this parent builder.
+     * This method handles properties like a default file system or a base path.
+     *
+     * @param params the parameters object
+     */
+    private void initChildFileBasedParameters(final FileBasedBuilderProperties<?> params) {
+        params.setBasePath(getBasePath());
+        params.setFileSystem(currentXMLParameters.getFileHandler().getFileSystem());
+    }
+
+    /**
+     * Initializes a parameters object for an XML configuration with properties already set for this parent builder.
+     *
+     * @param params the parameters object
+     */
+    private void initChildXMLParameters(final XMLBuilderProperties<?> params) {
+        params.setEntityResolver(currentXMLParameters.getEntityResolver());
+    }
+
+    /**
+     * Initializes the default base path for all file-based child configuration sources. The base path can be explicitly
+     * defined in the parameters of this builder. Otherwise, if the definition builder is a file-based builder, it is
+     * obtained from there.
+     *
+     * @throws ConfigurationException if an error occurs
+     */
+    private void initDefaultBasePath() throws ConfigurationException {
+        assert currentParameters != null : "Current parameters undefined!";
+        if (currentParameters.getBasePath() != null) {
+            currentXMLParameters.setBasePath(currentParameters.getBasePath());
+        } else {
+            final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder = getDefinitionBuilder();
+            if (defBuilder instanceof FileBasedConfigurationBuilder) {
+                @SuppressWarnings("rawtypes")
+                final FileBasedConfigurationBuilder fileBuilder = (FileBasedConfigurationBuilder) defBuilder;
+                final URL url = fileBuilder.getFileHandler().getURL();
+                currentXMLParameters.setBasePath(url != null ? url.toExternalForm() : fileBuilder.getFileHandler().getBasePath());
+            }
+        }
+    }
+
+    /**
+     * Executes the {@link org.apache.commons.configuration2.builder.DefaultParametersManager DefaultParametersManager}
+     * stored in the current parameters on the passed in parameters object. If default handlers have been registered for
+     * this type of parameters, an initialization is now performed. This method is called before the parameters object is
+     * initialized from the configuration definition file. So default values can be overridden later with concrete property
+     * definitions.
+     *
+     * @param params the parameters to be initialized
+     * @throws org.apache.commons.configuration2.ex.ConfigurationRuntimeException if an error occurs when copying properties
+     */
+    private void initDefaultChildParameters(final BuilderParameters params) {
+        currentParameters.getChildDefaultParametersManager().initializeParameters(params);
+    }
+
+    /**
+     * Creates and initializes a default {@code FileSystem} if the definition configuration contains a corresponding
+     * declaration. The file system returned by this method is used as default for all file-based child configuration
+     * sources.
+     *
+     * @param config the definition configuration
+     * @return the default {@code FileSystem} (may be <b>null</b>)
+     * @throws ConfigurationException if an error occurs
+     */
+    protected FileSystem initFileSystem(final HierarchicalConfiguration<?> config) throws ConfigurationException {
+        if (config.getMaxIndex(FILE_SYSTEM) == 0) {
+            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config, FILE_SYSTEM);
+            return (FileSystem) fetchBeanHelper().createBean(decl);
+        }
+        return null;
     }
 
     /**
@@ -661,67 +1128,6 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Creates the {@code CombinedConfiguration} for the configuration sources in the {@code &lt;additional&gt;} section.
-     * This method is called when the builder constructs the final configuration. It creates a new
-     * {@code CombinedConfiguration} and initializes some properties from the result configuration.
-     *
-     * @param resultConfig the result configuration (this is the configuration that will be returned by the builder)
-     * @return the {@code CombinedConfiguration} for the additional configuration sources
-     * @since 1.7
-     */
-    protected CombinedConfiguration createAdditionalsConfiguration(final CombinedConfiguration resultConfig) {
-        final CombinedConfiguration addConfig = new CombinedConfiguration(new UnionCombiner());
-        addConfig.setListDelimiterHandler(resultConfig.getListDelimiterHandler());
-        return addConfig;
-    }
-
-    /**
-     * Processes custom {@link Lookup} objects that might be declared in the definition configuration. Each {@code Lookup}
-     * object is registered at the definition configuration and at the result configuration. It is also added to all child
-     * configurations added to the resulting combined configuration.
-     *
-     * @param defConfig the definition configuration
-     * @param resultConfig the resulting configuration
-     * @throws ConfigurationException if an error occurs
-     */
-    protected void registerConfiguredLookups(final HierarchicalConfiguration<?> defConfig, final Configuration resultConfig) throws ConfigurationException {
-        final Map<String, Lookup> lookups = new HashMap<>();
-
-        final List<? extends HierarchicalConfiguration<?>> nodes = defConfig.configurationsAt(KEY_CONFIGURATION_LOOKUPS);
-        for (final HierarchicalConfiguration<?> config : nodes) {
-            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config);
-            final String key = config.getString(KEY_LOOKUP_KEY);
-            final Lookup lookup = (Lookup) fetchBeanHelper().createBean(decl);
-            lookups.put(key, lookup);
-        }
-
-        if (!lookups.isEmpty()) {
-            final ConfigurationInterpolator defCI = defConfig.getInterpolator();
-            if (defCI != null) {
-                defCI.registerLookups(lookups);
-            }
-            resultConfig.getInterpolator().registerLookups(lookups);
-        }
-    }
-
-    /**
-     * Creates and initializes a default {@code FileSystem} if the definition configuration contains a corresponding
-     * declaration. The file system returned by this method is used as default for all file-based child configuration
-     * sources.
-     *
-     * @param config the definition configuration
-     * @return the default {@code FileSystem} (may be <b>null</b>)
-     * @throws ConfigurationException if an error occurs
-     */
-    protected FileSystem initFileSystem(final HierarchicalConfiguration<?> config) throws ConfigurationException {
-        if (config.getMaxIndex(FILE_SYSTEM) == 0) {
-            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config, FILE_SYSTEM);
-            return (FileSystem) fetchBeanHelper().createBean(decl);
-        }
-        return null;
-    }
-
-    /**
      * Handles a file with system properties that may be defined in the definition configuration. If such property file is
      * configured, all of its properties are added to the system properties.
      *
@@ -741,34 +1147,6 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Creates and initializes a default {@code EntityResolver} if the definition configuration contains a corresponding
-     * declaration.
-     *
-     * @param config the definition configuration
-     * @param xmlParams the (already partly initialized) object with XML parameters; here the new resolver is to be stored
-     * @throws ConfigurationException if an error occurs
-     */
-    protected void configureEntityResolver(final HierarchicalConfiguration<?> config, final XMLBuilderParametersImpl xmlParams) throws ConfigurationException {
-        if (config.getMaxIndex(KEY_ENTITY_RESOLVER) == 0) {
-            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config, KEY_ENTITY_RESOLVER, true);
-            final EntityResolver resolver = (EntityResolver) fetchBeanHelper().createBean(decl, CatalogResolver.class);
-            final FileSystem fileSystem = xmlParams.getFileHandler().getFileSystem();
-            if (fileSystem != null) {
-                BeanHelper.setProperty(resolver, "fileSystem", fileSystem);
-            }
-            final String basePath = xmlParams.getFileHandler().getBasePath();
-            if (basePath != null) {
-                BeanHelper.setProperty(resolver, "baseDir", basePath);
-            }
-            final ConfigurationInterpolator ci = new ConfigurationInterpolator();
-            ci.registerLookups(fetchPrefixLookups());
-            BeanHelper.setProperty(resolver, "interpolator", ci);
-
-            xmlParams.setEntityResolver(resolver);
-        }
-    }
-
-    /**
      * Returns the {@code ConfigurationBuilderProvider} for the given tag. This method is called during creation of the
      * result configuration. (It is not allowed to call it at another point of time; result is then unpredictable!) It
      * supports all default providers and custom providers added through the parameters object as well.
@@ -781,60 +1159,55 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
-     * Initializes a parameters object for a child builder. This combined configuration builder has a bunch of properties
-     * which may be inherited by child configurations, e.g. the base path, the file system, etc. While processing the
-     * builders for child configurations, this method is called for each parameters object for a child builder. It
-     * initializes some properties of the passed in parameters objects which are derived from this parent builder.
+     * Processes custom {@link Lookup} objects that might be declared in the definition configuration. Each {@code Lookup}
+     * object is registered at the definition configuration and at the result configuration. It is also added to all child
+     * configurations added to the resulting combined configuration.
      *
-     * @param params the parameters object to be initialized
+     * @param defConfig the definition configuration
+     * @param resultConfig the resulting configuration
+     * @throws ConfigurationException if an error occurs
      */
-    protected void initChildBuilderParameters(final BuilderParameters params) {
-        initDefaultChildParameters(params);
+    protected void registerConfiguredLookups(final HierarchicalConfiguration<?> defConfig, final Configuration resultConfig) throws ConfigurationException {
+        final Map<String, Lookup> lookups = defConfig.configurationsAt(KEY_CONFIGURATION_LOOKUPS).stream().collect(
+                Collectors.toMap(config -> config.getString(KEY_LOOKUP_KEY), config -> (Lookup) fetchBeanHelper().createBean(new XMLBeanDeclaration(config))));
 
-        if (params instanceof BasicBuilderParameters) {
-            initChildBasicParameters((BasicBuilderParameters) params);
-        }
-        if (params instanceof XMLBuilderProperties<?>) {
-            initChildXMLParameters((XMLBuilderProperties<?>) params);
-        }
-        if (params instanceof FileBasedBuilderProperties<?>) {
-            initChildFileBasedParameters((FileBasedBuilderProperties<?>) params);
-        }
-        if (params instanceof CombinedBuilderParametersImpl) {
-            initChildCombinedParameters((CombinedBuilderParametersImpl) params);
+        if (!lookups.isEmpty()) {
+            final ConfigurationInterpolator defCI = defConfig.getInterpolator();
+            if (defCI != null) {
+                defCI.registerLookups(lookups);
+            }
+            resultConfig.getInterpolator().registerLookups(lookups);
         }
     }
 
     /**
-     * Initializes the event listeners of the specified builder from this object. This method is used to inherit all
-     * listeners from a parent builder.
+     * Registers providers defined in the configuration.
      *
-     * @param dest the destination builder object which is to be initialized
+     * @param defConfig the definition configuration
      */
-    void initChildEventListeners(final BasicConfigurationBuilder<? extends Configuration> dest) {
-        copyEventListeners(dest);
+    private void registerConfiguredProviders(final HierarchicalConfiguration<?> defConfig) {
+        defConfig.configurationsAt(KEY_CONFIGURATION_PROVIDERS).forEach(config -> {
+            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config);
+            final String key = config.getString(KEY_PROVIDER_KEY);
+            currentParameters.registerProvider(key, (ConfigurationBuilderProvider) fetchBeanHelper().createBean(decl));
+        });
     }
 
     /**
-     * Returns the configuration object that is currently constructed. This method can be called during construction of the
-     * result configuration. It is intended for internal usage, e.g. some specialized builder providers need access to this
-     * configuration to perform advanced initialization.
-     *
-     * @return the configuration that us currently under construction
+     * {@inheritDoc} This implementation resets some specific internal state of this builder.
      */
-    CombinedConfiguration getConfigurationUnderConstruction() {
-        return currentConfiguration;
-    }
+    @Override
+    public synchronized void resetParameters() {
+        super.resetParameters();
+        definitionBuilder = null;
+        definitionConfiguration = null;
+        currentParameters = null;
+        currentXMLParameters = null;
 
-    /**
-     * Initializes a bean using the current {@code BeanHelper}. This is needed by builder providers when the configuration
-     * objects for sub builders are constructed.
-     *
-     * @param bean the bean to be initialized
-     * @param decl the {@code BeanDeclaration}
-     */
-    void initBean(final Object bean, final BeanDeclaration decl) {
-        fetchBeanHelper().initBean(bean, decl);
+        if (sourceData != null) {
+            sourceData.cleanUp();
+            sourceData = null;
+        }
     }
 
     /**
@@ -859,6 +1232,40 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
     }
 
     /**
+     * Obtains the {@code ConfigurationBuilder} object which provides access to the configuration containing the definition
+     * of the combined configuration to create. If a definition builder is defined in the parameters, it is used. Otherwise,
+     * we check whether the combined builder parameters object contains a parameters object for the definition builder. If
+     * this is the case, a builder for an {@code XMLConfiguration} is created and configured with this object. As a last
+     * resort, it is looked for a {@link FileBasedBuilderParametersImpl} object in the properties. If found, also a XML
+     * configuration builder is created which loads this file. Note: This method is called from a synchronized block.
+     *
+     * @param params the current parameters for this builder
+     * @return the builder for the definition configuration
+     * @throws ConfigurationException if an error occurs
+     */
+    protected ConfigurationBuilder<? extends HierarchicalConfiguration<?>> setupDefinitionBuilder(final Map<String, Object> params)
+        throws ConfigurationException {
+        final CombinedBuilderParametersImpl cbParams = CombinedBuilderParametersImpl.fromParameters(params);
+        if (cbParams != null) {
+            final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder = cbParams.getDefinitionBuilder();
+            if (defBuilder != null) {
+                return defBuilder;
+            }
+
+            if (cbParams.getDefinitionBuilderParameters() != null) {
+                return createXMLDefinitionBuilder(cbParams.getDefinitionBuilderParameters());
+            }
+        }
+
+        final BuilderParameters fileParams = FileBasedBuilderParametersImpl.fromParameters(params);
+        if (fileParams != null) {
+            return createXMLDefinitionBuilder(fileParams);
+        }
+
+        throw new ConfigurationException("No builder for configuration definition specified!");
+    }
+
+    /**
      * Sets up a parent {@code ConfigurationInterpolator} object. This object has a default {@link Lookup} querying the
      * resulting combined configuration. Thus interpolation works globally across all configuration sources.
      *
@@ -871,429 +1278,6 @@ public class CombinedConfigurationBuilder extends BasicConfigurationBuilder<Comb
         final ConfigurationInterpolator defInterpolator = defConfig.getInterpolator();
         if (defInterpolator != null) {
             defInterpolator.setParentInterpolator(parentInterpolator);
-        }
-    }
-
-    /**
-     * Initializes the default base path for all file-based child configuration sources. The base path can be explicitly
-     * defined in the parameters of this builder. Otherwise, if the definition builder is a file-based builder, it is
-     * obtained from there.
-     *
-     * @throws ConfigurationException if an error occurs
-     */
-    private void initDefaultBasePath() throws ConfigurationException {
-        assert currentParameters != null : "Current parameters undefined!";
-        if (currentParameters.getBasePath() != null) {
-            currentXMLParameters.setBasePath(currentParameters.getBasePath());
-        } else {
-            final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder = getDefinitionBuilder();
-            if (defBuilder instanceof FileBasedConfigurationBuilder) {
-                @SuppressWarnings("rawtypes")
-                final FileBasedConfigurationBuilder fileBuilder = (FileBasedConfigurationBuilder) defBuilder;
-                final URL url = fileBuilder.getFileHandler().getURL();
-                currentXMLParameters.setBasePath(url != null ? url.toExternalForm() : fileBuilder.getFileHandler().getBasePath());
-            }
-        }
-    }
-
-    /**
-     * Executes the {@link org.apache.commons.configuration2.builder.DefaultParametersManager DefaultParametersManager}
-     * stored in the current parameters on the passed in parameters object. If default handlers have been registered for
-     * this type of parameters, an initialization is now performed. This method is called before the parameters object is
-     * initialized from the configuration definition file. So default values can be overridden later with concrete property
-     * definitions.
-     *
-     * @param params the parameters to be initialized
-     * @throws org.apache.commons.configuration2.ex.ConfigurationRuntimeException if an error occurs when copying properties
-     */
-    private void initDefaultChildParameters(final BuilderParameters params) {
-        currentParameters.getChildDefaultParametersManager().initializeParameters(params);
-    }
-
-    /**
-     * Initializes basic builder parameters for a child configuration with default settings set for this builder. This
-     * implementation ensures that all {@code Lookup} objects are propagated to child configurations and interpolation is
-     * setup correctly.
-     *
-     * @param params the parameters object
-     */
-    private void initChildBasicParameters(final BasicBuilderParameters params) {
-        params.setPrefixLookups(fetchPrefixLookups());
-        params.setParentInterpolator(parentInterpolator);
-        if (currentParameters.isInheritSettings()) {
-            params.inheritFrom(getParameters());
-        }
-    }
-
-    /**
-     * Initializes a parameters object for a file-based configuration with properties already set for this parent builder.
-     * This method handles properties like a default file system or a base path.
-     *
-     * @param params the parameters object
-     */
-    private void initChildFileBasedParameters(final FileBasedBuilderProperties<?> params) {
-        params.setBasePath(getBasePath());
-        params.setFileSystem(currentXMLParameters.getFileHandler().getFileSystem());
-    }
-
-    /**
-     * Initializes a parameters object for an XML configuration with properties already set for this parent builder.
-     *
-     * @param params the parameters object
-     */
-    private void initChildXMLParameters(final XMLBuilderProperties<?> params) {
-        params.setEntityResolver(currentXMLParameters.getEntityResolver());
-    }
-
-    /**
-     * Initializes a parameters object for a combined configuration builder with properties already set for this parent
-     * builder. This implementation deals only with a subset of properties. Other properties are already handled by the
-     * specialized builder provider.
-     *
-     * @param params the parameters object
-     */
-    private void initChildCombinedParameters(final CombinedBuilderParametersImpl params) {
-        params.registerMissingProviders(currentParameters);
-        params.setBasePath(getBasePath());
-    }
-
-    /**
-     * Obtains the data object for the configuration sources and the corresponding builders. This object is created on first
-     * access and reset when the definition builder sends a change event. This method is called in a synchronized block.
-     *
-     * @return the object with information about configuration sources
-     * @throws ConfigurationException if an error occurs
-     */
-    private ConfigurationSourceData getSourceData() throws ConfigurationException {
-        if (sourceData == null) {
-            if (currentParameters == null) {
-                setUpCurrentParameters();
-                setUpCurrentXMLParameters();
-            }
-            sourceData = createSourceData();
-        }
-        return sourceData;
-    }
-
-    /**
-     * Creates the data object for configuration sources and the corresponding builders.
-     *
-     * @return the newly created data object
-     * @throws ConfigurationException if an error occurs
-     */
-    private ConfigurationSourceData createSourceData() throws ConfigurationException {
-        final ConfigurationSourceData result = new ConfigurationSourceData();
-        result.initFromDefinitionConfiguration(getDefinitionConfiguration());
-        return result;
-    }
-
-    /**
-     * Returns the current base path of this configuration builder. This is used for instance by all file-based child
-     * configurations.
-     *
-     * @return the base path
-     */
-    private String getBasePath() {
-        return currentXMLParameters.getFileHandler().getBasePath();
-    }
-
-    /**
-     * Registers providers defined in the configuration.
-     *
-     * @param defConfig the definition configuration
-     */
-    private void registerConfiguredProviders(final HierarchicalConfiguration<?> defConfig) {
-        final List<? extends HierarchicalConfiguration<?>> nodes = defConfig.configurationsAt(KEY_CONFIGURATION_PROVIDERS);
-        for (final HierarchicalConfiguration<?> config : nodes) {
-            final XMLBeanDeclaration decl = new XMLBeanDeclaration(config);
-            final String key = config.getString(KEY_PROVIDER_KEY);
-            currentParameters.registerProvider(key, (ConfigurationBuilderProvider) fetchBeanHelper().createBean(decl));
-        }
-    }
-
-    /**
-     * Adds a listener at the given definition builder which resets this builder when a reset of the definition builder
-     * happens. This way it is ensured that this builder produces a new combined configuration when its definition
-     * configuration changes.
-     *
-     * @param defBuilder the definition builder
-     */
-    private void addDefinitionBuilderChangeListener(final ConfigurationBuilder<? extends HierarchicalConfiguration<?>> defBuilder) {
-        defBuilder.addEventListener(ConfigurationBuilderEvent.RESET, event -> {
-            synchronized (this) {
-                reset();
-                definitionBuilder = defBuilder;
-            }
-        });
-    }
-
-    /**
-     * Returns a map with the current prefix lookup objects. This map is obtained from the {@code ConfigurationInterpolator}
-     * of the configuration under construction.
-     *
-     * @return the map with current prefix lookups (may be <b>null</b>)
-     */
-    private Map<String, ? extends Lookup> fetchPrefixLookups() {
-        final CombinedConfiguration cc = getConfigurationUnderConstruction();
-        return cc != null ? cc.getInterpolator().getLookups() : null;
-    }
-
-    /**
-     * Creates {@code ConfigurationDeclaration} objects for the specified configurations.
-     *
-     * @param configs the list with configurations
-     * @return a collection with corresponding declarations
-     */
-    private Collection<ConfigurationDeclaration> createDeclarations(final Collection<? extends HierarchicalConfiguration<?>> configs) {
-        final Collection<ConfigurationDeclaration> declarations = new ArrayList<>(configs.size());
-        for (final HierarchicalConfiguration<?> c : configs) {
-            declarations.add(new ConfigurationDeclaration(this, c));
-        }
-        return declarations;
-    }
-
-    /**
-     * Initializes the list nodes of the node combiner for the given combined configuration. This information can be set in
-     * the header section of the configuration definition file for both the override and the union combiners.
-     *
-     * @param cc the combined configuration to initialize
-     * @param defConfig the definition configuration
-     * @param key the key for the list nodes
-     */
-    private static void initNodeCombinerListNodes(final CombinedConfiguration cc, final HierarchicalConfiguration<?> defConfig, final String key) {
-        final List<Object> listNodes = defConfig.getList(key);
-        for (final Object listNode : listNodes) {
-            cc.getNodeCombiner().addListNode((String) listNode);
-        }
-    }
-
-    /**
-     * Creates the map with the default configuration builder providers.
-     *
-     * @return the map with default providers
-     */
-    private static Map<String, ConfigurationBuilderProvider> createDefaultProviders() {
-        final Map<String, ConfigurationBuilderProvider> providers = new HashMap<>();
-        for (int i = 0; i < DEFAULT_TAGS.length; i++) {
-            providers.put(DEFAULT_TAGS[i], DEFAULT_PROVIDERS[i]);
-        }
-        return providers;
-    }
-
-    static {
-        DEFAULT_PROVIDERS_MAP = createDefaultProviders();
-    }
-
-    /**
-     * A data class for storing information about all configuration sources defined for a combined builder.
-     */
-    private class ConfigurationSourceData {
-        /** A list with data for all builders for override configurations. */
-        private final List<ConfigurationDeclaration> overrideDeclarations;
-
-        /** A list with data for all builders for union configurations. */
-        private final List<ConfigurationDeclaration> unionDeclarations;
-
-        /** A list with the builders for override configurations. */
-        private final List<ConfigurationBuilder<? extends Configuration>> overrideBuilders;
-
-        /** A list with the builders for union configurations. */
-        private final List<ConfigurationBuilder<? extends Configuration>> unionBuilders;
-
-        /** A map for direct access to a builder by its name. */
-        private final Map<String, ConfigurationBuilder<? extends Configuration>> namedBuilders;
-
-        /** A collection with all child builders. */
-        private final Collection<ConfigurationBuilder<? extends Configuration>> allBuilders;
-
-        /** A listener for reacting on changes of sub builders. */
-        private final EventListener<ConfigurationBuilderEvent> changeListener;
-
-        /**
-         * Creates a new instance of {@code ConfigurationSourceData}.
-         */
-        public ConfigurationSourceData() {
-            overrideDeclarations = new ArrayList<>();
-            unionDeclarations = new ArrayList<>();
-            overrideBuilders = new ArrayList<>();
-            unionBuilders = new ArrayList<>();
-            namedBuilders = new HashMap<>();
-            allBuilders = new LinkedList<>();
-            changeListener = createBuilderChangeListener();
-        }
-
-        /**
-         * Initializes this object from the specified definition configuration.
-         *
-         * @param config the definition configuration
-         * @throws ConfigurationException if an error occurs
-         */
-        public void initFromDefinitionConfiguration(final HierarchicalConfiguration<?> config) throws ConfigurationException {
-            overrideDeclarations.addAll(createDeclarations(fetchTopLevelOverrideConfigs(config)));
-            overrideDeclarations.addAll(createDeclarations(config.childConfigurationsAt(KEY_OVERRIDE)));
-            unionDeclarations.addAll(createDeclarations(config.childConfigurationsAt(KEY_UNION)));
-        }
-
-        /**
-         * Processes the declaration of configuration builder providers, creates the corresponding builder if necessary, obtains
-         * configurations, and adds them to the specified result configuration.
-         *
-         * @param ccResult the result configuration
-         * @param srcDecl the collection with the declarations of configuration sources to process
-         * @return a list with configuration builders
-         * @throws ConfigurationException if an error occurs
-         */
-        public List<ConfigurationBuilder<? extends Configuration>> createAndAddConfigurations(final CombinedConfiguration ccResult,
-            final List<ConfigurationDeclaration> srcDecl, final List<ConfigurationBuilder<? extends Configuration>> builders) throws ConfigurationException {
-            final boolean createBuilders = builders.isEmpty();
-            final List<ConfigurationBuilder<? extends Configuration>> newBuilders;
-            if (createBuilders) {
-                newBuilders = new ArrayList<>(srcDecl.size());
-            } else {
-                newBuilders = builders;
-            }
-
-            for (int i = 0; i < srcDecl.size(); i++) {
-                final ConfigurationBuilder<? extends Configuration> b;
-                if (createBuilders) {
-                    b = createConfigurationBuilder(srcDecl.get(i));
-                    newBuilders.add(b);
-                } else {
-                    b = builders.get(i);
-                }
-                addChildConfiguration(ccResult, srcDecl.get(i), b);
-            }
-
-            return newBuilders;
-        }
-
-        /**
-         * Frees resources used by this object and performs clean up. This method is called when the owning builder is reset.
-         */
-        public void cleanUp() {
-            for (final ConfigurationBuilder<?> b : getChildBuilders()) {
-                b.removeEventListener(ConfigurationBuilderEvent.RESET, changeListener);
-            }
-            namedBuilders.clear();
-        }
-
-        /**
-         * Returns a collection containing the builders for all child configuration sources.
-         *
-         * @return the child configuration builders
-         */
-        public Collection<ConfigurationBuilder<? extends Configuration>> getChildBuilders() {
-            return allBuilders;
-        }
-
-        /**
-         * Returns a collection with all configuration source declarations defined in the override section.
-         *
-         * @return the override configuration builders
-         */
-        public List<ConfigurationDeclaration> getOverrideSources() {
-            return overrideDeclarations;
-        }
-
-        /**
-         * Returns a collection with all configuration source declarations defined in the union section.
-         *
-         * @return the union configuration builders
-         */
-        public List<ConfigurationDeclaration> getUnionSources() {
-            return unionDeclarations;
-        }
-
-        /**
-         * Returns the {@code ConfigurationBuilder} with the given name. If no such builder is defined in the definition
-         * configuration, result is <b>null</b>.
-         *
-         * @param name the name of the builder in question
-         * @return the builder with this name or <b>null</b>
-         */
-        public ConfigurationBuilder<? extends Configuration> getNamedBuilder(final String name) {
-            return namedBuilders.get(name);
-        }
-
-        /**
-         * Returns a set with the names of all known named builders.
-         *
-         * @return the names of the available sub builders
-         */
-        public Set<String> builderNames() {
-            return namedBuilders.keySet();
-        }
-
-        /**
-         * Creates a configuration builder based on a source declaration in the definition configuration.
-         *
-         * @param decl the current {@code ConfigurationDeclaration}
-         * @return the newly created builder
-         * @throws ConfigurationException if an error occurs
-         */
-        private ConfigurationBuilder<? extends Configuration> createConfigurationBuilder(final ConfigurationDeclaration decl) throws ConfigurationException {
-            final ConfigurationBuilderProvider provider = providerForTag(decl.getConfiguration().getRootElementName());
-            if (provider == null) {
-                throw new ConfigurationException("Unsupported configuration source: " + decl.getConfiguration().getRootElementName());
-            }
-
-            final ConfigurationBuilder<? extends Configuration> builder = provider.getConfigurationBuilder(decl);
-            if (decl.getName() != null) {
-                namedBuilders.put(decl.getName(), builder);
-            }
-            allBuilders.add(builder);
-            builder.addEventListener(ConfigurationBuilderEvent.RESET, changeListener);
-            return builder;
-        }
-
-        /**
-         * Creates a new configuration using the specified builder and adds it to the resulting combined configuration.
-         *
-         * @param ccResult the resulting combined configuration
-         * @param decl the current {@code ConfigurationDeclaration}
-         * @param builder the configuration builder
-         * @throws ConfigurationException if an error occurs
-         */
-        private void addChildConfiguration(final CombinedConfiguration ccResult, final ConfigurationDeclaration decl,
-            final ConfigurationBuilder<? extends Configuration> builder) throws ConfigurationException {
-            try {
-                ccResult.addConfiguration(builder.getConfiguration(), decl.getName(), decl.getAt());
-            } catch (final ConfigurationException cex) {
-                // ignore exceptions for optional configurations
-                if (!decl.isOptional()) {
-                    throw cex;
-                }
-            }
-        }
-
-        /**
-         * Creates a listener for builder change events. This listener is registered at all builders for child configurations.
-         */
-        private EventListener<ConfigurationBuilderEvent> createBuilderChangeListener() {
-            return event -> resetResult();
-        }
-
-        /**
-         * Finds the override configurations that are defined as top level elements in the configuration definition file. This
-         * method fetches the child elements of the root node and removes the nodes that represent other configuration sections.
-         * The remaining nodes are treated as definitions for override configurations.
-         *
-         * @param config the definition configuration
-         * @return a list with sub configurations for the top level override configurations
-         */
-        private List<? extends HierarchicalConfiguration<?>> fetchTopLevelOverrideConfigs(final HierarchicalConfiguration<?> config) {
-
-            final List<? extends HierarchicalConfiguration<?>> configs = config.childConfigurationsAt(null);
-            for (final Iterator<? extends HierarchicalConfiguration<?>> it = configs.iterator(); it.hasNext();) {
-                final String nodeName = it.next().getRootElementName();
-                for (final String element : CONFIG_SECTIONS) {
-                    if (element.equals(nodeName)) {
-                        it.remove();
-                        break;
-                    }
-                }
-            }
-            return configs;
         }
     }
 }

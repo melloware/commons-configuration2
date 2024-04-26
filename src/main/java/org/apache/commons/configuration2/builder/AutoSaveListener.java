@@ -41,7 +41,7 @@ import org.apache.commons.logging.LogFactory;
  *
  * @since 2.0
  */
-class AutoSaveListener extends FileHandlerListenerAdapter implements EventListener<ConfigurationEvent> {
+final class AutoSaveListener extends FileHandlerListenerAdapter implements EventListener<ConfigurationEvent> {
     /** The logger. */
     private final Log log = LogFactory.getLog(getClass());
 
@@ -66,6 +66,42 @@ class AutoSaveListener extends FileHandlerListenerAdapter implements EventListen
     }
 
     /**
+     * Checks whether an auto save operation has to be performed based on the passed in event and the current state of this
+     * object.
+     *
+     * @param event the configuration change event
+     * @return <b>true</b> if a save operation should be performed, <b>false</b> otherwise
+     */
+    private boolean autoSaveRequired(final ConfigurationEvent event) {
+        return !event.isBeforeUpdate() && !inLoadOperation();
+    }
+
+    /**
+     * Returns a flag whether a load operation is currently in progress.
+     *
+     * @return a flag whether a load operation is in progress
+     */
+    private synchronized boolean inLoadOperation() {
+        return loading > 0;
+    }
+
+    /**
+     * {@inheritDoc} This implementation decrements the counter for load operations in progress.
+     */
+    @Override
+    public synchronized void loaded(final FileHandler handler) {
+        loading--;
+    }
+
+    /**
+     * {@inheritDoc} This implementation increments the counter for load operations in progress.
+     */
+    @Override
+    public synchronized void loading(final FileHandler handler) {
+        loading++;
+    }
+
+    /**
      * {@inheritDoc} This implementation checks whether an auto-safe operation should be performed. This is the case if the
      * event indicates that an update of the configuration has been performed and currently no load operation is in
      * progress.
@@ -79,22 +115,6 @@ class AutoSaveListener extends FileHandlerListenerAdapter implements EventListen
                 log.warn("Auto save failed!", ce);
             }
         }
-    }
-
-    /**
-     * {@inheritDoc} This implementation increments the counter for load operations in progress.
-     */
-    @Override
-    public synchronized void loading(final FileHandler handler) {
-        loading++;
-    }
-
-    /**
-     * {@inheritDoc} This implementation decrements the counter for load operations in progress.
-     */
-    @Override
-    public synchronized void loaded(final FileHandler handler) {
-        loading--;
     }
 
     /**
@@ -113,25 +133,5 @@ class AutoSaveListener extends FileHandlerListenerAdapter implements EventListen
             fh.addFileHandlerListener(this);
         }
         handler = fh;
-    }
-
-    /**
-     * Returns a flag whether a load operation is currently in progress.
-     *
-     * @return a flag whether a load operation is in progress
-     */
-    private synchronized boolean inLoadOperation() {
-        return loading > 0;
-    }
-
-    /**
-     * Checks whether an auto save operation has to be performed based on the passed in event and the current state of this
-     * object.
-     *
-     * @param event the configuration change event
-     * @return <b>true</b> if a save operation should be performed, <b>false</b> otherwise
-     */
-    private boolean autoSaveRequired(final ConfigurationEvent event) {
-        return !event.isBeforeUpdate() && !inLoadOperation();
     }
 }

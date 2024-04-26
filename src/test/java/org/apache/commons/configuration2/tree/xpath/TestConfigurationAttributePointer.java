@@ -16,11 +16,13 @@
  */
 package org.apache.commons.configuration2.tree.xpath;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
 
@@ -31,12 +33,11 @@ import org.apache.commons.jxpath.ri.Compiler;
 import org.apache.commons.jxpath.ri.QName;
 import org.apache.commons.jxpath.ri.compiler.NodeTest;
 import org.apache.commons.jxpath.ri.compiler.NodeTypeTest;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code ConfigurationAttributePointer}.
- *
  */
 public class TestConfigurationAttributePointer {
     /** Constant for the name of the test attribute. */
@@ -51,7 +52,7 @@ public class TestConfigurationAttributePointer {
     /** The attribute pointer to be tested. */
     private ConfigurationAttributePointer<ImmutableNode> pointer;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         final ImmutableNode.Builder ndBuilder = new ImmutableNode.Builder();
         ndBuilder.name("parent").addAttribute(ATTR_NAME, ATTR_VALUE);
@@ -65,7 +66,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testAttributeIterator() {
-        assertNull("Returned an attribute iterator", pointer.attributeIterator(new QName(null, "test")));
+        assertNull(pointer.attributeIterator(new QName(null, "test")));
     }
 
     /**
@@ -73,7 +74,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testChildIterator() {
-        assertNull("Returned an iterator for children", pointer.childIterator(null, false, null));
+        assertNull(pointer.childIterator(null, false, null));
     }
 
     /**
@@ -81,7 +82,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testGetBaseValue() {
-        assertEquals("Wrong base value", ATTR_VALUE, pointer.getBaseValue());
+        assertEquals(ATTR_VALUE, pointer.getBaseValue());
     }
 
     /**
@@ -90,11 +91,10 @@ public class TestConfigurationAttributePointer {
     @Test
     public void testGetImmediateNode() {
         final Object node = pointer.getImmediateNode();
-        assertTrue("Wrong node class", node instanceof QueryResult);
-        final QueryResult<?> proxy = (QueryResult<?>) node;
-        assertTrue("No attribute result", proxy.isAttributeResult());
-        assertEquals("Wrong parent node", parent.getConfigurationNode(), proxy.getNode());
-        assertEquals("Wrong attribute name", ATTR_NAME, proxy.getAttributeName());
+        final QueryResult<?> proxy = assertInstanceOf(QueryResult.class, node);
+        assertTrue(proxy.isAttributeResult());
+        assertEquals(parent.getConfigurationNode(), proxy.getNode());
+        assertEquals(ATTR_NAME, proxy.getAttributeName());
     }
 
     /**
@@ -102,7 +102,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testGetLength() {
-        assertEquals("Wrong length", 1, pointer.getLength());
+        assertEquals(1, pointer.getLength());
     }
 
     /**
@@ -111,8 +111,8 @@ public class TestConfigurationAttributePointer {
     @Test
     public void testGetName() {
         final QName name = pointer.getName();
-        assertEquals("Wrong name", ATTR_NAME, name.getName());
-        assertNull("Prefix not null", name.getPrefix());
+        assertEquals(ATTR_NAME, name.getName());
+        assertNull(name.getPrefix());
     }
 
     /**
@@ -120,7 +120,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testGetParentPointer() {
-        assertSame("Wrong parent pointer", parent, pointer.getParentPointer());
+        assertSame(parent, pointer.getParentPointer());
     }
 
     /**
@@ -128,7 +128,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testGetValue() {
-        assertEquals("Wrong value", ATTR_VALUE, pointer.getValue());
+        assertEquals(ATTR_VALUE, pointer.getValue());
     }
 
     /**
@@ -136,7 +136,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testIsAttribute() {
-        assertTrue("Not an attribute", pointer.isAttribute());
+        assertTrue(pointer.isAttribute());
     }
 
     /**
@@ -144,7 +144,7 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testIsCollection() {
-        assertFalse("Wrong collection flag", pointer.isCollection());
+        assertFalse(pointer.isCollection());
     }
 
     /**
@@ -152,15 +152,15 @@ public class TestConfigurationAttributePointer {
      */
     @Test
     public void testIsLeaf() {
-        assertTrue("Wrong leaf flag", pointer.isLeaf());
+        assertTrue(pointer.isLeaf());
     }
 
     /**
      * Tries to set a new value.
      */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSetValue() {
-        pointer.setValue("newValue");
+        assertThrows(UnsupportedOperationException.class, () -> pointer.setValue("newValue"));
     }
 
     /**
@@ -169,8 +169,8 @@ public class TestConfigurationAttributePointer {
     @Test
     public void testTestNode() {
         NodeTest test = new NodeTypeTest(Compiler.NODE_TYPE_TEXT);
-        assertTrue("No a text node", pointer.testNode(test));
+        assertTrue(pointer.testNode(test));
         test = new NodeTypeTest(Compiler.NODE_TYPE_COMMENT);
-        assertFalse("A comment node", pointer.testNode(test));
+        assertFalse(pointer.testNode(test));
     }
 }

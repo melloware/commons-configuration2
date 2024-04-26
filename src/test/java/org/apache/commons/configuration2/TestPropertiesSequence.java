@@ -1,5 +1,3 @@
-package org.apache.commons.configuration2;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,8 +15,10 @@ package org.apache.commons.configuration2;
  * limitations under the License.
  */
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+package org.apache.commons.configuration2;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.Iterator;
 import java.util.List;
@@ -27,11 +27,10 @@ import org.apache.commons.configuration2.builder.FileBasedBuilderParametersImpl;
 import org.apache.commons.configuration2.builder.combined.CombinedConfigurationBuilder;
 import org.apache.commons.configuration2.io.FileHandler;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test that the configuration factory returns keys in the same sequence as the properties configurator
- *
  */
 public class TestPropertiesSequence {
     @Test
@@ -54,12 +53,8 @@ public class TestPropertiesSequence {
         final List<String> keysSimpleConfiguration = ConfigurationAssert.keysToList(a);
         final List<String> keysCompositeConfiguration = ConfigurationAssert.keysToList(b);
 
-        assertFalse("Size:" + keysSimpleConfiguration.size(), keysSimpleConfiguration.isEmpty());
-        assertEquals(keysSimpleConfiguration.size(), keysCompositeConfiguration.size());
-
-        for (int i = 0; i < keysSimpleConfiguration.size(); i++) {
-            assertEquals(keysSimpleConfiguration.get(i), keysCompositeConfiguration.get(i));
-        }
+        assertFalse(keysSimpleConfiguration.isEmpty());
+        assertEquals(keysSimpleConfiguration, keysCompositeConfiguration);
     }
 
     @Test
@@ -88,12 +83,8 @@ public class TestPropertiesSequence {
         final List<String> keysSimpleConfiguration = ConfigurationAssert.keysToList(a);
         final List<String> keysCompositeConfiguration = ConfigurationAssert.keysToList(b);
 
-        assertFalse("Size:" + keysSimpleConfiguration.size(), keysSimpleConfiguration.isEmpty());
-        assertEquals(keysSimpleConfiguration.size(), keysCompositeConfiguration.size());
-
-        for (int i = 0; i < keysSimpleConfiguration.size(); i++) {
-            assertEquals(keysSimpleConfiguration.get(i), keysCompositeConfiguration.get(i));
-        }
+        assertFalse(keysSimpleConfiguration.isEmpty());
+        assertEquals(keysSimpleConfiguration, keysCompositeConfiguration);
     }
 
     @Test

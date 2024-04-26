@@ -17,8 +17,8 @@
 
 package org.apache.commons.configuration2.spring;
 
-import java.net.URL;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.configuration2.Configuration;
@@ -46,10 +46,21 @@ import org.springframework.util.Assert;
  */
 public class ConfigurationPropertiesFactoryBean implements InitializingBean, FactoryBean<Properties> {
 
-    /** internal CompositeConfiguration containing the merged configuration objects **/
+    /**
+     * Creates a defensive copy of the specified array. Handles null values correctly.
+     *
+     * @param src the source array
+     * @param <T> the type of the array
+     * @return the defensive copy of the array
+     */
+    private static <T> T[] defensiveCopy(final T[] src) {
+        return src != null ? src.clone() : null;
+    }
+
+    /** Internal CompositeConfiguration containing the merged configuration objects **/
     private CompositeConfiguration compositeConfiguration;
 
-    /** supplied configurations that will be merged in compositeConfiguration **/
+    /** Supplied configurations that will be merged in compositeConfiguration **/
     private Configuration[] configurations;
 
     /** Spring resources for loading configurations **/
@@ -64,6 +75,44 @@ public class ConfigurationPropertiesFactoryBean implements InitializingBean, Fac
     public ConfigurationPropertiesFactoryBean(final Configuration configuration) {
         Assert.notNull(configuration, "configuration");
         this.compositeConfiguration = new CompositeConfiguration(configuration);
+    }
+
+    /**
+     * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet()
+     */
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        if (compositeConfiguration == null && ArrayUtils.isEmpty(configurations) && ArrayUtils.isEmpty(locations)) {
+            throw new IllegalArgumentException("no configuration object or location specified");
+        }
+
+        if (compositeConfiguration == null) {
+            compositeConfiguration = new CompositeConfiguration();
+        }
+
+        compositeConfiguration.setThrowExceptionOnMissing(throwExceptionOnMissing);
+
+        if (configurations != null) {
+            Stream.of(configurations).forEach(compositeConfiguration::addConfiguration);
+        }
+
+        if (locations != null) {
+            for (final Resource location : locations) {
+                compositeConfiguration.addConfiguration(new Configurations().properties(location.getURL()));
+            }
+        }
+    }
+
+    public CompositeConfiguration getConfiguration() {
+        return compositeConfiguration;
+    }
+
+    public Configuration[] getConfigurations() {
+        return defensiveCopy(configurations);
+    }
+
+    public Resource[] getLocations() {
+        return defensiveCopy(locations);
     }
 
     /**
@@ -90,51 +139,17 @@ public class ConfigurationPropertiesFactoryBean implements InitializingBean, Fac
         return true;
     }
 
-    /**
-     * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet()
-     */
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        if (compositeConfiguration == null && ArrayUtils.isEmpty(configurations) && ArrayUtils.isEmpty(locations)) {
-            throw new IllegalArgumentException("no configuration object or location specified");
-        }
-
-        if (compositeConfiguration == null) {
-            compositeConfiguration = new CompositeConfiguration();
-        }
-
-        compositeConfiguration.setThrowExceptionOnMissing(throwExceptionOnMissing);
-
-        if (configurations != null) {
-            for (final Configuration configuration : configurations) {
-                compositeConfiguration.addConfiguration(configuration);
-            }
-        }
-
-        if (locations != null) {
-            for (final Resource location : locations) {
-                final URL url = location.getURL();
-                final Configuration props = new Configurations().properties(url);
-                compositeConfiguration.addConfiguration(props);
-            }
-        }
-    }
-
-    public Configuration[] getConfigurations() {
-        return defensiveCopy(configurations);
+    public boolean isThrowExceptionOnMissing() {
+        return throwExceptionOnMissing;
     }
 
     /**
-     * Set the commons configurations objects which will be used as properties.
+     * Sets the commons configurations objects which will be used as properties.
      *
      * @param configurations commons configurations objects which will be used as properties.
      */
     public void setConfigurations(final Configuration... configurations) {
         this.configurations = defensiveCopy(configurations);
-    }
-
-    public Resource[] getLocations() {
-        return defensiveCopy(locations);
     }
 
     /**
@@ -147,32 +162,13 @@ public class ConfigurationPropertiesFactoryBean implements InitializingBean, Fac
         this.locations = defensiveCopy(locations);
     }
 
-    public boolean isThrowExceptionOnMissing() {
-        return throwExceptionOnMissing;
-    }
-
     /**
-     * Set the underlying Commons CompositeConfiguration throwExceptionOnMissing flag.
+     * Sets the underlying Commons CompositeConfiguration throwExceptionOnMissing flag.
      *
      * @see org.apache.commons.configuration2.AbstractConfiguration#setThrowExceptionOnMissing(boolean)
      * @param throwExceptionOnMissing The new value for the property
      */
     public void setThrowExceptionOnMissing(final boolean throwExceptionOnMissing) {
         this.throwExceptionOnMissing = throwExceptionOnMissing;
-    }
-
-    public CompositeConfiguration getConfiguration() {
-        return compositeConfiguration;
-    }
-
-    /**
-     * Creates a defensive copy of the specified array. Handles null values correctly.
-     *
-     * @param src the source array
-     * @param <T> the type of the array
-     * @return the defensive copy of the array
-     */
-    private static <T> T[] defensiveCopy(final T[] src) {
-        return src != null ? src.clone() : null;
     }
 }

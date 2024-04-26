@@ -243,7 +243,7 @@ public interface ImmutableConfiguration {
      * {@link #getCollection(Class, String, Collection, Collection)} passing in <b>null</b> as default value.
      *
      * @param <T> the element type of the result list
-     * @param cls the the element class of the result list
+     * @param cls the element class of the result list
      * @param key the configuration key
      * @param target the target collection (may be <b>null</b>)
      * @return the collection to which data was added
@@ -268,7 +268,7 @@ public interface ImmutableConfiguration {
      * </ul>
      *
      * @param <T> the element type of the result list
-     * @param cls the the element class of the result list
+     * @param cls the element class of the result list
      * @param key the configuration key
      * @param target the target collection (may be <b>null</b>)
      * @param defaultValue the default value (may be <b>null</b>)
@@ -507,6 +507,26 @@ public interface ImmutableConfiguration {
      * @see #getKeys()
      */
     Iterator<String> getKeys(String prefix);
+
+    /**
+     * Gets the list of the keys contained in the configuration that match the specified prefix. For instance, if the
+     * configuration contains the following keys:<br>
+     * {@code db@user, db@pwd, db@url, window.xpos, window.ypos},<br>
+     * an invocation of {@code getKeys("db","@");}<br>
+     * will return the keys below:<br>
+     * {@code db@user, db@pwd, db@url}.<br>
+     * Note that the prefix itself is included in the result set if there is a matching key. The exact behavior - how the
+     * prefix is actually interpreted - depends on a concrete implementation.
+     *
+     * @param prefix The prefix to test against.
+     * @param delimiter The prefix delimiter.
+     * @return An Iterator of keys that match the prefix.
+     * @see #getKeys()
+     * @since 2.10.0
+     */
+    default Iterator<String> getKeys(final String prefix, final String delimiter) {
+        return null;
+    }
 
     /**
      * Gets a list of typed objects associated with the given configuration key returning a null if the key doesn't map to

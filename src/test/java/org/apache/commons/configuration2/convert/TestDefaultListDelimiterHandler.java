@@ -16,19 +16,22 @@
  */
 package org.apache.commons.configuration2.convert;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code DefaultListDelimiterHandler}.
- *
  */
 public class TestDefaultListDelimiterHandler {
     /** The handler to be tested. */
@@ -44,14 +47,10 @@ public class TestDefaultListDelimiterHandler {
      */
     private void checkSplit(final String value, final boolean trim, final String... expectedElements) {
         final Collection<String> elems = handler.split(value, trim);
-        assertEquals("Wrong number of elements", expectedElements.length, elems.size());
-        int idx = 0;
-        for (final String elem : elems) {
-            assertEquals("Wrong value at " + idx, expectedElements[idx++], elem);
-        }
+        assertIterableEquals(Arrays.asList(expectedElements), elems);
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         handler = new DefaultListDelimiterHandler(',');
     }
@@ -70,7 +69,7 @@ public class TestDefaultListDelimiterHandler {
     public void testEscapeList() {
         final ValueTransformer trans = value -> String.valueOf(value) + "_trans";
         final List<String> data = Arrays.asList("simple", "Hello,world!", "\\,\\", "end");
-        assertEquals("Wrong result", "simple_trans,Hello\\,world!_trans," + "\\\\\\,\\\\_trans,end_trans", handler.escapeList(data, trans));
+        assertEquals("simple_trans,Hello\\,world!_trans," + "\\\\\\,\\\\_trans,end_trans", handler.escapeList(data, trans));
     }
 
     /**
@@ -78,7 +77,7 @@ public class TestDefaultListDelimiterHandler {
      */
     @Test
     public void testEscapeStringBackslash() {
-        assertEquals("Wrong result", "C:\\\\Temp\\\\", handler.escapeString("C:\\Temp\\"));
+        assertEquals("C:\\\\Temp\\\\", handler.escapeString("C:\\Temp\\"));
     }
 
     /**
@@ -86,7 +85,7 @@ public class TestDefaultListDelimiterHandler {
      */
     @Test
     public void testEscapeStringListDelimiter() {
-        assertEquals("Wrong result", "3\\,1415", handler.escapeString("3,1415"));
+        assertEquals("3\\,1415", handler.escapeString("3,1415"));
     }
 
     /**
@@ -94,7 +93,7 @@ public class TestDefaultListDelimiterHandler {
      */
     @Test
     public void testEscapeStringListDelimiterAndBackslash() {
-        assertEquals("Wrong result", "C:\\\\Temp\\\\\\,\\\\\\\\Share\\,/root", handler.escapeString("C:\\Temp\\,\\\\Share,/root"));
+        assertEquals("C:\\\\Temp\\\\\\,\\\\\\\\Share\\,/root", handler.escapeString("C:\\Temp\\,\\\\Share,/root"));
     }
 
     /**
@@ -102,7 +101,7 @@ public class TestDefaultListDelimiterHandler {
      */
     @Test
     public void testEscapeStringNoSpecialCharacter() {
-        assertEquals("Wrong result", "test", handler.escapeString("test"));
+        assertEquals("test", handler.escapeString("test"));
     }
 
     /**
@@ -110,11 +109,14 @@ public class TestDefaultListDelimiterHandler {
      */
     @Test
     public void testEscapeWithTransformer() {
-        final ValueTransformer trans = EasyMock.createMock(ValueTransformer.class);
-        EasyMock.expect(trans.transformValue("a\\,b")).andReturn("ok");
-        EasyMock.replay(trans);
-        assertEquals("Wrong result", "ok", handler.escape("a,b", trans));
-        EasyMock.verify(trans);
+        final ValueTransformer trans = mock(ValueTransformer.class);
+
+        when(trans.transformValue("a\\,b")).thenReturn("ok");
+
+        assertEquals("ok", handler.escape("a,b", trans));
+
+        verify(trans).transformValue("a\\,b");
+        verifyNoMoreInteractions(trans);
     }
 
     /**

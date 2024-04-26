@@ -38,11 +38,21 @@ import org.apache.commons.lang3.StringUtils;
  * select a specific sub directory of the user's home directory. If this option is set to <b>false</b>, the base path is
  * always ignored, and only the file name is evaluated.
  * </p>
- *
  */
 public class HomeDirectoryLocationStrategy implements FileLocationStrategy {
     /** Constant for the system property with the user's home directory. */
     private static final String PROP_HOME = "user.home";
+
+    /**
+     * Obtains the home directory to be used by a new instance. If a directory name is provided, it is used. Otherwise, the
+     * user's home directory is looked up.
+     *
+     * @param homeDir the passed in home directory
+     * @return the directory to be used
+     */
+    private static String fetchHomeDirectory(final String homeDir) {
+        return homeDir != null ? homeDir : System.getProperty(PROP_HOME);
+    }
 
     /** The home directory to be searched for the requested file. */
     private final String homeDirectory;
@@ -51,14 +61,11 @@ public class HomeDirectoryLocationStrategy implements FileLocationStrategy {
     private final boolean evaluateBasePath;
 
     /**
-     * Creates a new instance of {@code HomeDirectoryLocationStrategy} and initializes it with the specified settings.
-     *
-     * @param homeDir the path to the home directory (can be <b>null</b>)
-     * @param withBasePath a flag whether the base path should be evaluated
+     * Creates a new instance of {@code HomeDirectoryLocationStrategy} with default settings. The home directory is set to
+     * the user's home directory. The base path flag is set to <b>false</b> (which means that the base path is ignored).
      */
-    public HomeDirectoryLocationStrategy(final String homeDir, final boolean withBasePath) {
-        homeDirectory = fetchHomeDirectory(homeDir);
-        evaluateBasePath = withBasePath;
+    public HomeDirectoryLocationStrategy() {
+        this(false);
     }
 
     /**
@@ -72,15 +79,31 @@ public class HomeDirectoryLocationStrategy implements FileLocationStrategy {
     }
 
     /**
-     * Creates a new instance of {@code HomeDirectoryLocationStrategy} with default settings. The home directory is set to
-     * the user's home directory. The base path flag is set to <b>false</b> (which means that the base path is ignored).
+     * Creates a new instance of {@code HomeDirectoryLocationStrategy} and initializes it with the specified settings.
+     *
+     * @param homeDir the path to the home directory (can be <b>null</b>)
+     * @param withBasePath a flag whether the base path should be evaluated
      */
-    public HomeDirectoryLocationStrategy() {
-        this(false);
+    public HomeDirectoryLocationStrategy(final String homeDir, final boolean withBasePath) {
+        homeDirectory = fetchHomeDirectory(homeDir);
+        evaluateBasePath = withBasePath;
     }
 
     /**
-     * Returns the home directory. In this directory the strategy searches for files.
+     * Determines the base path to be used for the current locate() operation.
+     *
+     * @param locator the {@code FileLocator}
+     * @return the base path to be used
+     */
+    private String fetchBasePath(final FileLocator locator) {
+        if (isEvaluateBasePath() && StringUtils.isNotEmpty(locator.getBasePath())) {
+            return FileLocatorUtils.appendPath(getHomeDirectory(), locator.getBasePath());
+        }
+        return getHomeDirectory();
+    }
+
+    /**
+     * Gets the home directory. In this directory the strategy searches for files.
      *
      * @return the home directory used by this object
      */
@@ -113,29 +136,5 @@ public class HomeDirectoryLocationStrategy implements FileLocationStrategy {
         }
 
         return null;
-    }
-
-    /**
-     * Determines the base path to be used for the current locate() operation.
-     *
-     * @param locator the {@code FileLocator}
-     * @return the base path to be used
-     */
-    private String fetchBasePath(final FileLocator locator) {
-        if (isEvaluateBasePath() && StringUtils.isNotEmpty(locator.getBasePath())) {
-            return FileLocatorUtils.appendPath(getHomeDirectory(), locator.getBasePath());
-        }
-        return getHomeDirectory();
-    }
-
-    /**
-     * Obtains the home directory to be used by a new instance. If a directory name is provided, it is used. Otherwise, the
-     * user's home directory is looked up.
-     *
-     * @param homeDir the passed in home directory
-     * @return the directory to be used
-     */
-    private static String fetchHomeDirectory(final String homeDir) {
-        return homeDir != null ? homeDir : System.getProperty(PROP_HOME);
     }
 }

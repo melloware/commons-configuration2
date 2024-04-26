@@ -16,11 +16,10 @@
  */
 package org.apache.commons.configuration2.event;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A test event listener implementation for error events.
- *
  */
 public class ErrorListenerTestImpl extends AbstractEventListenerTestImpl<ConfigurationErrorEvent> {
     /**
@@ -43,9 +42,9 @@ public class ErrorListenerTestImpl extends AbstractEventListenerTestImpl<Configu
      */
     public Throwable checkEvent(final EventType<?> type, final EventType<?> opType, final String propName, final Object propValue) {
         final ConfigurationErrorEvent e = nextEvent(type);
-        assertEquals("Wrong operation event type", opType, e.getErrorOperationType());
-        assertEquals("Wrong property name", propName, e.getPropertyName());
-        assertEquals("Wrong property value", propValue, e.getPropertyValue());
+        assertEquals(opType, e.getErrorOperationType());
+        assertEquals(propName, e.getPropertyName());
+        assertEquals(propValue, e.getPropertyValue());
         return e.getCause();
     }
 }

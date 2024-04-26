@@ -16,8 +16,8 @@
  */
 package org.apache.commons.configuration2.tree.xpath;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.StringReader;
 import java.util.Iterator;
@@ -25,12 +25,11 @@ import java.util.Iterator;
 import org.apache.commons.configuration2.XMLConfiguration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.configuration2.io.FileHandler;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * A test class for XPathExpressionEngine that tests the engine integrated into a hierarchical configuration.
- *
  */
 public class TestXPathExpressionEngineInConfig {
     /** Constant for a test key. */
@@ -42,7 +41,7 @@ public class TestXPathExpressionEngineInConfig {
     /** The test configuration. */
     private XMLConfiguration config;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         config = new XMLConfiguration();
         config.setExpressionEngine(new XPathExpressionEngine());
@@ -58,9 +57,9 @@ public class TestXPathExpressionEngineInConfig {
         config.addProperty("tables/table[last()]/fields/field/name", "taskid");
         config.addProperty("tables/table[last()]/fields/field[last()]/@type", "int");
         config.addProperty("tables table/name", "documents");
-        assertEquals("Wrong table 1", "tasks", config.getString("tables/table[1]/name"));
-        assertEquals("Wrong table 2", "documents", config.getString("tables/table[2]/name"));
-        assertEquals("Wrong field type", "int", config.getString("tables/table[1]/fields/field[1]/@type"));
+        assertEquals("tasks", config.getString("tables/table[1]/name"));
+        assertEquals("documents", config.getString("tables/table[2]/name"));
+        assertEquals("int", config.getString("tables/table[1]/fields/field[1]/@type"));
     }
 
     /**
@@ -77,7 +76,7 @@ public class TestXPathExpressionEngineInConfig {
 
         for (final Iterator<String> it = config.getKeys(); it.hasNext();) {
             final String key = it.next();
-            assertNotNull("No value for " + key, config.getString(key));
+            assertNotNull(config.getString(key), "No value for " + key);
         }
     }
 
@@ -88,7 +87,7 @@ public class TestXPathExpressionEngineInConfig {
     public void testSetPropertyExisting() {
         config.addProperty(" " + KEY, "failure");
         config.setProperty(KEY, VALUE);
-        assertEquals("Value not changed", VALUE, config.getString(KEY));
+        assertEquals(VALUE, config.getString(KEY));
     }
 
     /**
@@ -99,7 +98,7 @@ public class TestXPathExpressionEngineInConfig {
         final String keyAttr = KEY + "/@attr";
         config.addProperty(" " + KEY, "test");
         config.setProperty(keyAttr, VALUE);
-        assertEquals("Value not set", VALUE, config.getString(keyAttr));
+        assertEquals(VALUE, config.getString(keyAttr));
     }
 
     /**
@@ -108,7 +107,7 @@ public class TestXPathExpressionEngineInConfig {
     @Test
     public void testSetPropertyNewKey() {
         config.setProperty(KEY, VALUE);
-        assertEquals("Value not set", VALUE, config.getString(KEY));
+        assertEquals(VALUE, config.getString(KEY));
     }
 
     /**
@@ -119,6 +118,6 @@ public class TestXPathExpressionEngineInConfig {
         final String testKey = KEY + "/sub";
         config.addProperty(" " + KEY, "test");
         config.setProperty(testKey, VALUE);
-        assertEquals("Value not set", VALUE, config.getString(testKey));
+        assertEquals(VALUE, config.getString(testKey));
     }
 }

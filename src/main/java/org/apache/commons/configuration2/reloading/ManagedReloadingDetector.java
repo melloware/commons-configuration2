@@ -22,7 +22,6 @@ import org.apache.commons.logging.LogFactory;
 
 /**
  * A strategy to reload configuration based on management requests. Designed for JMX management.
- *
  */
 public class ManagedReloadingDetector implements ReloadingDetector, ManagedReloadingDetectorMBean {
     /** The logger. */
@@ -30,14 +29,6 @@ public class ManagedReloadingDetector implements ReloadingDetector, ManagedReloa
 
     /** A flag whether a reload is required. */
     private volatile boolean reloadingRequired;
-
-    /**
-     * {@inheritDoc} This implementation resets the internal flag indicating that a reload should be performed.
-     */
-    @Override
-    public void reloadingPerformed() {
-        reloadingRequired = false;
-    }
 
     /**
      * Checks whether reloading is required. This implementation checks whether the {@code refresh()} method has been
@@ -60,5 +51,13 @@ public class ManagedReloadingDetector implements ReloadingDetector, ManagedReloa
     public void refresh() {
         log.info("Reloading configuration.");
         reloadingRequired = true;
+    }
+
+    /**
+     * {@inheritDoc} This implementation resets the internal flag indicating that a reload should be performed.
+     */
+    @Override
+    public void reloadingPerformed() {
+        reloadingRequired = false;
     }
 }

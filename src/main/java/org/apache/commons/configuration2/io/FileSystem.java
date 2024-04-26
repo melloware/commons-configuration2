@@ -64,7 +64,7 @@ public abstract class FileSystem {
     }
 
     /**
-     * Returns the logger used by this FileSystem.
+     * Gets the logger used by this FileSystem.
      *
      * @return the logger
      */
@@ -84,7 +84,7 @@ public abstract class FileSystem {
     public abstract URL locateFromURL(String basePath, String fileName);
 
     /**
-     * Set the FileOptionsProvider
+     * Sets the FileOptionsProvider
      *
      * @param provider The FileOptionsProvider
      */

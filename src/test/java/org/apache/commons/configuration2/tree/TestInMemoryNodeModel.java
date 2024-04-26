@@ -20,14 +20,18 @@ import static org.apache.commons.configuration2.tree.NodeStructureHelper.ROOT_AU
 import static org.apache.commons.configuration2.tree.NodeStructureHelper.ROOT_PERSONAE_TREE;
 import static org.apache.commons.configuration2.tree.NodeStructureHelper.nodeForKey;
 import static org.apache.commons.configuration2.tree.NodeStructureHelper.nodePathWithEndNode;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,12 +47,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.easymock.EasyMock;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code InMemoryNodeModel}.
- *
  */
 public class TestInMemoryNodeModel {
     /** Constant for a test key. */
@@ -65,9 +67,9 @@ public class TestInMemoryNodeModel {
         final NodeHandler<ImmutableNode> handler = model.getNodeHandler();
         for (int i = path.length - 1; i >= 0; i--) {
             node = handler.getParent(node);
-            assertEquals("Wrong node name", path[i], node.getNodeName());
+            assertEquals(path[i], node.getNodeName());
         }
-        assertSame("Wrong root node", model.getRootNode(), handler.getParent(node));
+        assertSame(model.getRootNode(), handler.getParent(node));
     }
 
     /**
@@ -75,8 +77,9 @@ public class TestInMemoryNodeModel {
      *
      * @return the mock for the resolver
      */
+    @SuppressWarnings("unchecked")
     private static NodeKeyResolver<ImmutableNode> createResolver() {
-        return EasyMock.createMock(NodeKeyResolver.class);
+        return mock(NodeKeyResolver.class);
     }
 
     /**
@@ -87,10 +90,9 @@ public class TestInMemoryNodeModel {
     private void checkAddNodesNoNodes(final Collection<ImmutableNode> newNodes) {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        EasyMock.replay(resolver);
 
         model.addNodes(KEY, newNodes, resolver);
-        assertSame("Model was changed", NodeStructureHelper.ROOT_AUTHORS_TREE, model.getRootNode());
+        assertSame(NodeStructureHelper.ROOT_AUTHORS_TREE, model.getRootNode());
     }
 
     /**
@@ -103,16 +105,12 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
         final QueryResult<ImmutableNode> result = QueryResult.createNodeResult(nodeForKey(model, pathToRemove));
-        EasyMock.expect(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(Collections.singletonList(result));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(Collections.singletonList(result));
 
         model.clearTree(KEY, resolver);
-        try {
-            model.getNodeHandler().getParent(nodeToCheck);
-            fail("Removed node still in parent mapping!");
-        } catch (final IllegalArgumentException iaex) {
-            // expected result
-        }
+        final NodeHandler<ImmutableNode> nodeHandler = model.getNodeHandler();
+        assertThrows(IllegalArgumentException.class, () -> nodeHandler.getParent(nodeToCheck));
     }
 
     /**
@@ -134,16 +132,16 @@ public class TestInMemoryNodeModel {
     /**
      * Tries to add new nodes if the key references an attribute.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAddNodesToAttribute() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
-            .andReturn(Collections.singletonList(QueryResult.createAttributeResult(nodeForKey(model, NodeStructureHelper.author(1)), "test")));
-        EasyMock.replay(resolver);
+        when(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
+                .thenReturn(Collections.singletonList(QueryResult.createAttributeResult(nodeForKey(model, NodeStructureHelper.author(1)), "test")));
 
         final ImmutableNode newNode = new ImmutableNode.Builder().name("newNode").create();
-        model.addNodes(KEY, Collections.singleton(newNode), resolver);
+        final Set<ImmutableNode> nodes = Collections.singleton(newNode);
+        assertThrows(IllegalArgumentException.class, () -> model.addNodes(KEY, nodes, resolver));
     }
 
     /**
@@ -156,32 +154,31 @@ public class TestInMemoryNodeModel {
         final String key = NodeStructureHelper.author(0);
         final ImmutableNode newWork1 = new ImmutableNode.Builder().name("King Lear").create();
         final ImmutableNode newWork2 = new ImmutableNode.Builder().name("The Taming of the Shrew").create();
-        EasyMock.expect(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
-            .andReturn(Collections.singletonList(QueryResult.createNodeResult(nodeForKey(model, key))));
-        EasyMock.replay(resolver);
+        when(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
+                .thenReturn(Collections.singletonList(QueryResult.createNodeResult(nodeForKey(model, key))));
 
         model.addNodes(KEY, Arrays.asList(newWork1, newWork2), resolver);
         final ImmutableNode node = nodeForKey(model, key);
         final int size = node.getChildren().size();
-        assertSame("New child 1 not added", newWork1, node.getChildren().get(size - 2));
-        assertSame("New child 2 not added", newWork2, node.getChildren().get(size - 1));
+        assertSame(newWork1, node.getChildren().get(size - 2));
+        assertSame(newWork2, node.getChildren().get(size - 1));
     }
 
     /**
      * Tries to add new nodes to an non-existing key pointing to an attribute.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAddNodesToNewAttributeKey() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
-            .andReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
-        EasyMock.expect(resolver.resolveAddKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
-            .andReturn(new NodeAddData<>(NodeStructureHelper.ROOT_AUTHORS_TREE, "test", true, null));
-        EasyMock.replay(resolver);
+        when(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
+                .thenReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
+        when(resolver.resolveAddKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
+                .thenReturn(new NodeAddData<>(NodeStructureHelper.ROOT_AUTHORS_TREE, "test", true, null));
 
         final ImmutableNode newNode = new ImmutableNode.Builder().name("newNode").create();
-        model.addNodes(KEY, Collections.singleton(newNode), resolver);
+        final Set<ImmutableNode> nodes = Collections.singleton(newNode);
+        assertThrows(IllegalArgumentException.class, () -> model.addNodes(KEY, nodes, resolver));
     }
 
     /**
@@ -194,14 +191,14 @@ public class TestInMemoryNodeModel {
         final String newAuthor = "Goethe";
         final String newWork = "Faust";
         final String newPersona = "Mephisto";
-        EasyMock.expect(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(new ArrayList<>(0));
-        EasyMock.expect(resolver.resolveAddKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
-            .andReturn(new NodeAddData<>(NodeStructureHelper.ROOT_AUTHORS_TREE, newWork, false, Arrays.asList(newAuthor)));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(new ArrayList<>(0));
+        when(resolver.resolveAddKey(NodeStructureHelper.ROOT_AUTHORS_TREE, KEY, model.getNodeHandler()))
+                .thenReturn(new NodeAddData<>(NodeStructureHelper.ROOT_AUTHORS_TREE, newWork, false, Arrays.asList(newAuthor)));
 
         final ImmutableNode personaNode = new ImmutableNode.Builder().name(newPersona).create();
         model.addNodes(KEY, Collections.singleton(personaNode), resolver);
-        assertSame("Wrong added node", personaNode, nodeForKey(model, newAuthor + "/" + newWork + "/" + newPersona));
+        assertSame(personaNode, nodeForKey(model, newAuthor + "/" + newWork + "/" + newPersona));
     }
 
     /**
@@ -212,12 +209,12 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Shakespeare/The Tempest"), "year", true, null);
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
 
         model.addProperty(KEY, Collections.singleton(1611), resolver);
         final ImmutableNode node = nodeForKey(model, "Shakespeare/The Tempest");
-        assertEquals("Attribute not set", 1611, node.getAttributes().get("year"));
+        assertEquals(1611, node.getAttributes().get("year"));
     }
 
     /**
@@ -229,12 +226,12 @@ public class TestInMemoryNodeModel {
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Homer/Ilias"), "number", true,
             Arrays.asList("scenes", "scene"));
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
 
         model.addProperty(KEY, Collections.singleton(1), resolver);
         final ImmutableNode node = nodeForKey(model, "Homer/Ilias/scenes/scene");
-        assertEquals("Attribute not set", 1, node.getAttributes().get("number"));
+        assertEquals(1, node.getAttributes().get("number"));
     }
 
     /**
@@ -246,13 +243,13 @@ public class TestInMemoryNodeModel {
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, NodeStructureHelper.author(0)), "year", true,
             Arrays.asList("dateOfBirth"));
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
 
         final Integer year = 1564;
         model.addProperty(KEY, Collections.singleton(year), resolver);
         final ImmutableNode node = nodeForKey(model, "Shakespeare/dateOfBirth");
-        assertEquals("Attribute not set", year, node.getAttributes().get("year"));
+        assertEquals(year, node.getAttributes().get("year"));
     }
 
     /**
@@ -263,13 +260,13 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Homer"), "work", false, null);
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
 
         model.addProperty(KEY, Collections.singleton("Odyssee"), resolver);
         final ImmutableNode node = nodeForKey(model, "Homer/work");
-        assertEquals("Wrong node value", "Odyssee", node.getValue());
-        assertNotNull("Could not find other nodes", nodeForKey(model, "Homer/Ilias/Hektor"));
+        assertEquals("Odyssee", node.getValue());
+        assertNotNull(nodeForKey(model, "Homer/Ilias/Hektor"));
     }
 
     /**
@@ -278,11 +275,10 @@ public class TestInMemoryNodeModel {
     @Test
     public void testAddPropertyNoValues() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
-        EasyMock.replay(resolver);
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
 
         model.addProperty(KEY, Collections.emptySet(), resolver);
-        assertSame("Root node was changed", ROOT_AUTHORS_TREE, model.getRootNode());
+        assertSame(ROOT_AUTHORS_TREE, model.getRootNode());
     }
 
     /**
@@ -294,8 +290,9 @@ public class TestInMemoryNodeModel {
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Homer/Ilias"), "location", false,
             Collections.singleton("locations"));
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
+
         final String[] locations = {"Troja", "Beach", "Olympos"};
 
         model.addProperty(KEY, Arrays.asList(locations), resolver);
@@ -313,22 +310,23 @@ public class TestInMemoryNodeModel {
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Homer/Ilias"), "location", false,
             Collections.singleton("locations"));
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
+
         final String[] locations = {"Troja", "Beach", "Olympos"};
 
         model.addProperty(KEY, Arrays.asList(locations), resolver);
         final ImmutableNode nodeLocs = nodeForKey(model, "Homer/Ilias/locations");
-        assertEquals("Wrong number of children", locations.length, nodeLocs.getChildren().size());
+        assertEquals(locations.length, nodeLocs.getChildren().size());
         int idx = 0;
         for (final ImmutableNode c : nodeLocs) {
-            assertEquals("Wrong node name", "location", c.getNodeName());
-            assertEquals("Wrong value", locations[idx], c.getValue());
-            assertTrue("Got children", c.getChildren().isEmpty());
-            assertTrue("Got attributes", c.getAttributes().isEmpty());
+            assertEquals("location", c.getNodeName());
+            assertEquals(locations[idx], c.getValue());
+            assertTrue(c.getChildren().isEmpty());
+            assertTrue(c.getAttributes().isEmpty());
             idx++;
         }
-        assertNotNull("Could not find other nodes", nodeForKey(model, "Homer/Ilias/Hektor"));
+        assertNotNull(nodeForKey(model, "Homer/Ilias/Hektor"));
     }
 
     /**
@@ -338,8 +336,8 @@ public class TestInMemoryNodeModel {
     public void testClear() {
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
         model.clear(createResolver());
-        assertFalse("Got still data", model.getNodeHandler().isDefined(model.getRootNode()));
-        assertEquals("Root name was changed", ROOT_AUTHORS_TREE.getNodeName(), model.getRootNode().getNodeName());
+        assertFalse(model.getNodeHandler().isDefined(model.getRootNode()));
+        assertEquals(ROOT_AUTHORS_TREE.getNodeName(), model.getRootNode().getNodeName());
     }
 
     /**
@@ -350,13 +348,13 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
         final String nodeKey = "Prospero/The Tempest/" + NodeStructureHelper.ELEM_ORG_VALUE;
-        EasyMock.expect(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler()))
-            .andReturn(Collections.singletonList(QueryResult.createAttributeResult(nodeForKey(model, nodeKey), NodeStructureHelper.ATTR_TESTED)));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler()))
+                .thenReturn(Collections.singletonList(QueryResult.createAttributeResult(nodeForKey(model, nodeKey), NodeStructureHelper.ATTR_TESTED)));
 
         model.clearProperty(KEY, resolver);
         final ImmutableNode node = nodeForKey(model, nodeKey);
-        assertTrue("Attribute not removed", node.getAttributes().isEmpty());
+        assertTrue(node.getAttributes().isEmpty());
     }
 
     /**
@@ -367,13 +365,12 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
         final String nodeKey = "Ariel/The Tempest/" + NodeStructureHelper.ELEM_ORG_VALUE;
-        EasyMock.expect(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler()))
-            .andReturn(Collections.singletonList(QueryResult.createNodeResult(nodeForKey(model, nodeKey))));
-        EasyMock.replay(resolver);
+        when(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler()))
+                .thenReturn(Collections.singletonList(QueryResult.createNodeResult(nodeForKey(model, nodeKey))));
 
         model.clearProperty(KEY, resolver);
         final ImmutableNode node = nodeForKey(model, nodeKey);
-        assertNull("Value not cleared", node.getValue());
+        assertNull(node.getValue());
     }
 
     /**
@@ -383,13 +380,13 @@ public class TestInMemoryNodeModel {
     public void testClearPropertyNonExisting() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
-        EasyMock.expect(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler())).andReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(model.getRootNode(), KEY, model.getNodeHandler())).thenReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
 
         final TreeData treeDataOld = model.getTreeData();
         model.clearProperty(KEY, resolver);
-        assertNotNull("No root node", model.getNodeHandler().getRootNode());
-        assertSame("Data was changed", treeDataOld, model.getTreeData());
+        assertNotNull(model.getNodeHandler().getRootNode());
+        assertSame(treeDataOld, model.getTreeData());
     }
 
     /**
@@ -401,14 +398,14 @@ public class TestInMemoryNodeModel {
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_PERSONAE_TREE);
         final String nodeName = "Puck";
         final QueryResult<ImmutableNode> result = QueryResult.createAttributeResult(nodeForKey(model, nodeName), NodeStructureHelper.ATTR_AUTHOR);
-        EasyMock.expect(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).andReturn(Collections.singletonList(result));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).thenReturn(Collections.singletonList(result));
 
         final List<QueryResult<ImmutableNode>> removed = model.clearTree(KEY, resolver);
         final ImmutableNode node = nodeForKey(model, nodeName);
-        assertTrue("Got still attributes", node.getAttributes().isEmpty());
-        assertEquals("Wrong number of removed elements", 1, removed.size());
-        assertTrue("Wrong removed element", removed.contains(result));
+        assertTrue(node.getAttributes().isEmpty());
+        assertEquals(1, removed.size());
+        assertTrue(removed.contains(result));
     }
 
     /**
@@ -437,17 +434,17 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
         final QueryResult<ImmutableNode> result = QueryResult.createNodeResult(nodeForKey(model, "Homer/Ilias/Achilles"));
-        EasyMock.expect(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(Collections.singletonList(result));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(Collections.singletonList(result));
 
         final List<QueryResult<ImmutableNode>> removed = model.clearTree(KEY, resolver);
         final ImmutableNode node = nodeForKey(model, "Homer/Ilias");
-        assertEquals("Wrong number of children", 2, node.getChildren().size());
+        assertEquals(2, node.getChildren().size());
         for (final ImmutableNode c : node) {
-            assertNotEquals("Node still found", result.getNode().getNodeName(), c.getNodeName());
+            assertNotEquals(result.getNode().getNodeName(), c.getNodeName());
         }
-        assertEquals("Wrong number of removed elements", 1, removed.size());
-        assertTrue("Wrong removed element", removed.contains(result));
+        assertEquals(1, removed.size());
+        assertTrue(removed.contains(result));
     }
 
     /**
@@ -463,16 +460,11 @@ public class TestInMemoryNodeModel {
         final List<QueryResult<ImmutableNode>> results = new ArrayList<>(2);
         results.add(QueryResult.createAttributeResult(orgNode, NodeStructureHelper.ATTR_AUTHOR));
         results.add(QueryResult.createNodeResult(orgNode.getChildren().get(0)));
-        EasyMock.expect(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).andReturn(results);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).thenReturn(results);
 
         model.clearTree(KEY, resolver);
-        try {
-            nodeForKey(model, nodeName);
-            fail("Node still present!");
-        } catch (final NoSuchElementException nex) {
-            // expected
-        }
+        assertThrows(NoSuchElementException.class, () -> nodeForKey(model, nodeName));
     }
 
     /**
@@ -482,13 +474,13 @@ public class TestInMemoryNodeModel {
     public void testClearTreeNonExistingKey() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_PERSONAE_TREE);
-        EasyMock.expect(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).andReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_PERSONAE_TREE, KEY, model.getNodeHandler())).thenReturn(Collections.<QueryResult<ImmutableNode>>emptyList());
 
         final TreeData treeDataOld = model.getTreeData();
-        assertTrue("Elements removed", model.clearTree(KEY, resolver).isEmpty());
-        assertNotNull("No root node", model.getNodeHandler().getRootNode());
-        assertSame("Data was changed", treeDataOld, model.getTreeData());
+        assertTrue(model.clearTree(KEY, resolver).isEmpty());
+        assertNotNull(model.getNodeHandler().getRootNode());
+        assertSame(treeDataOld, model.getTreeData());
     }
 
     /**
@@ -503,13 +495,13 @@ public class TestInMemoryNodeModel {
         for (final ImmutableNode child : node) {
             results.add(QueryResult.createNodeResult(child));
         }
-        EasyMock.expect(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(results);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(results);
 
         model.clearTree(KEY, resolver);
-        assertEquals("Child of root not removed", NodeStructureHelper.authorsLength() - 1, model.getRootNode().getChildren().size());
+        assertEquals(NodeStructureHelper.authorsLength() - 1, model.getRootNode().getChildren().size());
         for (final ImmutableNode child : model.getRootNode()) {
-            assertNotEquals("Child still found", "Homer", child.getNodeName());
+            assertNotEquals("Homer", child.getNodeName());
         }
     }
 
@@ -522,11 +514,11 @@ public class TestInMemoryNodeModel {
         final ImmutableNode child = new ImmutableNode.Builder().name("child").value("test").create();
         final ImmutableNode root = new ImmutableNode.Builder(1).addChild(child).create();
         final InMemoryNodeModel model = new InMemoryNodeModel(root);
-        EasyMock.expect(resolver.resolveKey(root, KEY, model.getNodeHandler())).andReturn(Collections.singletonList(QueryResult.createNodeResult(child)));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(root, KEY, model.getNodeHandler())).thenReturn(Collections.singletonList(QueryResult.createNodeResult(child)));
 
         model.clearTree(KEY, resolver);
-        assertFalse("Root node still defined", model.getNodeHandler().isDefined(model.getRootNode()));
+        assertFalse(model.getNodeHandler().isDefined(model.getRootNode()));
     }
 
     /**
@@ -539,11 +531,11 @@ public class TestInMemoryNodeModel {
         final List<QueryResult<ImmutableNode>> results = new ArrayList<>(2);
         results.add(QueryResult.createNodeResult(nodeForKey(model, NodeStructureHelper.author(0))));
         results.add(QueryResult.createNodeResult(ROOT_AUTHORS_TREE));
-        EasyMock.expect(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(results);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(results);
 
         model.clearTree(KEY, resolver);
-        assertFalse("Got still data", model.getNodeHandler().isDefined(model.getRootNode()));
+        assertFalse(model.getNodeHandler().isDefined(model.getRootNode()));
     }
 
     /**
@@ -555,8 +547,8 @@ public class TestInMemoryNodeModel {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
         final QueryResult<ImmutableNode> result = QueryResult.createNodeResult(nodeForKey(model, nodePathWithEndNode("Achilles", path)));
-        EasyMock.expect(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(Collections.singletonList(result));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(Collections.singletonList(result));
 
         model.clearTree(KEY, resolver);
         checkPathToRoot(model, nodeForKey(model, nodePathWithEndNode("Hektor", path)), path);
@@ -573,23 +565,21 @@ public class TestInMemoryNodeModel {
         final String key = "Homer/Ilias";
         for (int i = 0; i < numberOfOperations; i++) {
             final int index = i;
-            EasyMock.expect(resolver.resolveAddKey(EasyMock.anyObject(ImmutableNode.class), EasyMock.eq(KEY), EasyMock.anyObject(TreeData.class)))
-                .andAnswer(() -> {
-                    assertSame("Wrong root node", model.getRootNode(), EasyMock.getCurrentArguments()[0]);
-                    final ImmutableNode addParent = nodeForKey(model, key);
-                    return new NodeAddData<>(addParent, "Warrior" + index, false, null);
-                });
+            when(resolver.resolveAddKey(any(), eq(KEY), any())).thenAnswer(invocation -> {
+                assertSame(model.getRootNode(), invocation.getArgument(0));
+                final ImmutableNode addParent = nodeForKey(model, key);
+                return new NodeAddData<>(addParent, "Warrior" + index, false, null);
+            });
         }
-        EasyMock.replay(resolver);
 
         for (int i = 0; i < numberOfOperations; i++) {
             model.addProperty(KEY, Collections.singleton(i), resolver);
         }
         final ImmutableNode orgNode = nodeForKey(ROOT_AUTHORS_TREE, key);
         final ImmutableNode changedNode = nodeForKey(model, key);
-        assertEquals("Wrong number of children", orgNode.getChildren().size() + numberOfOperations, changedNode.getChildren().size());
+        assertEquals(orgNode.getChildren().size() + numberOfOperations, changedNode.getChildren().size());
         final Map<ImmutableNode, ImmutableNode> replacementMapping = model.getTreeData().copyReplacementMapping();
-        assertTrue("Replacement mapping too big: " + replacementMapping.size(), replacementMapping.size() < numberOfOperations);
+        assertTrue(replacementMapping.size() < numberOfOperations);
     }
 
     /**
@@ -600,11 +590,11 @@ public class TestInMemoryNodeModel {
     public void testConcurrentUpdate() throws InterruptedException {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveAddKey(EasyMock.anyObject(ImmutableNode.class), EasyMock.eq(KEY), EasyMock.anyObject(TreeData.class))).andAnswer(() -> {
-            final ImmutableNode addParent = (ImmutableNode) EasyMock.getCurrentArguments()[0];
+
+        when(resolver.resolveAddKey(any(), eq(KEY), any())).thenAnswer(invocation -> {
+            final ImmutableNode addParent = invocation.getArgument(0, ImmutableNode.class);
             return new NodeAddData<>(addParent, "name", false, Collections.singleton("author"));
-        }).anyTimes();
-        EasyMock.replay(resolver);
+        });
 
         final CountDownLatch latch = new CountDownLatch(1);
         final String authorPrefix = "newAuthor";
@@ -632,12 +622,12 @@ public class TestInMemoryNodeModel {
         for (int i = 0; i < threadCount; i++) {
             final ImmutableNode node = nodeForKey(model, "author(" + i + ")/name");
             final Matcher m = patternAuthorName.matcher(String.valueOf(node.getValue()));
-            assertTrue("Wrong value: " + node.getValue(), m.matches());
+            assertTrue(m.matches(), "Wrong value: " + node.getValue());
             final int idx = Integer.parseInt(m.group(1));
-            assertTrue("Invalid index: " + idx, idx >= 0 && idx < threadCount);
+            assertTrue(idx >= 0 && idx < threadCount, "Invalid index: " + idx);
             indices.add(idx);
         }
-        assertEquals("Not all authors were created", threadCount, indices.size());
+        assertEquals(threadCount, indices.size());
     }
 
     /**
@@ -646,7 +636,7 @@ public class TestInMemoryNodeModel {
     @Test
     public void testGetInMemoryRepresentation() {
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        assertSame("Wrong in-memory representation", NodeStructureHelper.ROOT_AUTHORS_TREE, model.getInMemoryRepresentation());
+        assertSame(NodeStructureHelper.ROOT_AUTHORS_TREE, model.getInMemoryRepresentation());
     }
 
     /**
@@ -655,7 +645,7 @@ public class TestInMemoryNodeModel {
     @Test
     public void testGetNodeHandler() {
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_PERSONAE_TREE);
-        assertSame("Wrong node handler", model.getTreeData(), model.getNodeHandler());
+        assertSame(model.getTreeData(), model.getNodeHandler());
     }
 
     /**
@@ -664,7 +654,7 @@ public class TestInMemoryNodeModel {
     @Test
     public void testGetRootNodeFromConstructor() {
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        assertSame("Wrong root node", ROOT_AUTHORS_TREE, model.getRootNode());
+        assertSame(ROOT_AUTHORS_TREE, model.getRootNode());
     }
 
     /**
@@ -674,10 +664,10 @@ public class TestInMemoryNodeModel {
     public void testInitDefaultRoot() {
         final InMemoryNodeModel model = new InMemoryNodeModel();
         final ImmutableNode root = model.getRootNode();
-        assertNull("Got a name", root.getNodeName());
-        assertNull("Got a value", root.getValue());
-        assertTrue("Got children", root.getChildren().isEmpty());
-        assertTrue("Got attributes", root.getAttributes().isEmpty());
+        assertNull(root.getNodeName());
+        assertNull(root.getValue());
+        assertTrue(root.getChildren().isEmpty());
+        assertTrue(root.getAttributes().isEmpty());
     }
 
     /**
@@ -694,13 +684,13 @@ public class TestInMemoryNodeModel {
         changedValues.put(QueryResult.createAttributeResult(changedNode, NodeStructureHelper.ATTR_TESTED), newValue);
         changedValues.put(QueryResult.createNodeResult(changedNode), newValue);
         final NodeUpdateData<ImmutableNode> updateData = new NodeUpdateData<>(changedValues, null, null, null);
-        EasyMock.expect(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler())).andReturn(updateData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler())).thenReturn(updateData);
 
         model.setProperty(KEY, this, resolver);
         final ImmutableNode node = nodeForKey(model, nodeKey);
-        assertEquals("Attribute value not changed", newValue, node.getAttributes().get(NodeStructureHelper.ATTR_TESTED));
-        assertEquals("Node value not changed", newValue, node.getValue());
+        assertEquals(newValue, node.getAttributes().get(NodeStructureHelper.ATTR_TESTED));
+        assertEquals(newValue, node.getValue());
     }
 
     /**
@@ -713,12 +703,12 @@ public class TestInMemoryNodeModel {
         final String nodeKey = "Ariel/The Tempest/" + NodeStructureHelper.ELEM_ORG_VALUE;
         final NodeUpdateData<ImmutableNode> updateData = new NodeUpdateData<>(null, null,
             Collections.singletonList(QueryResult.createNodeResult(nodeForKey(model, nodeKey))), null);
-        EasyMock.expect(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler())).andReturn(updateData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler())).thenReturn(updateData);
 
         model.setProperty(KEY, this, resolver);
         final ImmutableNode node = nodeForKey(model, nodeKey);
-        assertNull("Value not cleared", node.getValue());
+        assertNull(node.getValue());
     }
 
     /**
@@ -730,14 +720,14 @@ public class TestInMemoryNodeModel {
         final NodeAddData<ImmutableNode> addData = new NodeAddData<>(nodeForKey(ROOT_AUTHORS_TREE, "Homer"), "work", false, null);
         final NodeUpdateData<ImmutableNode> updateData = new NodeUpdateData<>(null, Collections.<Object>singleton("Odyssee"), null, KEY);
         final InMemoryNodeModel model = new InMemoryNodeModel(ROOT_AUTHORS_TREE);
-        EasyMock.expect(resolver.resolveUpdateKey(ROOT_AUTHORS_TREE, KEY, this, model.getNodeHandler())).andReturn(updateData);
-        EasyMock.expect(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).andReturn(addData);
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveUpdateKey(ROOT_AUTHORS_TREE, KEY, this, model.getNodeHandler())).thenReturn(updateData);
+        when(resolver.resolveAddKey(ROOT_AUTHORS_TREE, KEY, model.getNodeHandler())).thenReturn(addData);
 
         model.setProperty(KEY, this, resolver);
         final ImmutableNode node = nodeForKey(model, "Homer/work");
-        assertEquals("Wrong node value", "Odyssee", node.getValue());
-        assertNotNull("Could not find other nodes", nodeForKey(model, "Homer/Ilias/Hektor"));
+        assertEquals("Odyssee", node.getValue());
+        assertNotNull(nodeForKey(model, "Homer/Ilias/Hektor"));
     }
 
     /**
@@ -747,12 +737,12 @@ public class TestInMemoryNodeModel {
     public void testSetPropertyNoChanges() {
         final NodeKeyResolver<ImmutableNode> resolver = createResolver();
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
-        EasyMock.expect(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler()))
-            .andReturn(new NodeUpdateData<>(null, null, null, null));
-        EasyMock.replay(resolver);
+
+        when(resolver.resolveUpdateKey(NodeStructureHelper.ROOT_PERSONAE_TREE, KEY, this, model.getNodeHandler()))
+                .thenReturn(new NodeUpdateData<>(null, null, null, null));
 
         model.setProperty(KEY, this, resolver);
-        assertSame("Model was changed", NodeStructureHelper.ROOT_PERSONAE_TREE, model.getRootNode());
+        assertSame(NodeStructureHelper.ROOT_PERSONAE_TREE, model.getRootNode());
     }
 
     /**
@@ -762,9 +752,9 @@ public class TestInMemoryNodeModel {
     public void testSetRoot() {
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
         model.setRootNode(NodeStructureHelper.ROOT_AUTHORS_TREE);
-        assertSame("Root node not changed", NodeStructureHelper.ROOT_AUTHORS_TREE, model.getRootNode());
+        assertSame(NodeStructureHelper.ROOT_AUTHORS_TREE, model.getRootNode());
         final ImmutableNode node = nodeForKey(model, "Homer/Ilias");
-        assertEquals("Wrong parent mapping", nodeForKey(model, "Homer"), model.getNodeHandler().getParent(node));
+        assertEquals(nodeForKey(model, "Homer"), model.getNodeHandler().getParent(node));
     }
 
     /**
@@ -775,6 +765,6 @@ public class TestInMemoryNodeModel {
         final InMemoryNodeModel model = new InMemoryNodeModel(NodeStructureHelper.ROOT_PERSONAE_TREE);
         model.setRootNode(null);
         final ImmutableNode rootNode = model.getRootNode();
-        assertTrue("Got children", rootNode.getChildren().isEmpty());
+        assertTrue(rootNode.getChildren().isEmpty());
     }
 }

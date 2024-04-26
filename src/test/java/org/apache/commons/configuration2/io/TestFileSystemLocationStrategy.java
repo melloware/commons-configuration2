@@ -16,24 +16,26 @@
  */
 package org.apache.commons.configuration2.io;
 
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.net.URL;
 
 import org.apache.commons.configuration2.ConfigurationAssert;
-import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code FileSystemLocationStrategy}.
- *
  */
 public class TestFileSystemLocationStrategy {
     /** The strategy to be tested. */
     private FileSystemLocationStrategy strategy;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         strategy = new FileSystemLocationStrategy();
     }
@@ -43,16 +45,19 @@ public class TestFileSystemLocationStrategy {
      */
     @Test
     public void testLocate() {
-        final FileSystem fs = EasyMock.createMock(FileSystem.class);
+        final FileSystem fs = mock(FileSystem.class);
         final URL url = ConfigurationAssert.getTestURL("test.xml");
         final String basePath = "testBasePath";
         final String fileName = "testFileName.txt";
-        EasyMock.expect(fs.locateFromURL(basePath, fileName)).andReturn(url);
-        EasyMock.replay(fs);
+
+        when(fs.locateFromURL(basePath, fileName)).thenReturn(url);
+
         final FileLocator locator = FileLocatorUtils.fileLocator().basePath(basePath).fileName(fileName).fileSystem(FileLocatorUtils.DEFAULT_FILE_SYSTEM)
             .sourceURL(ConfigurationAssert.getTestURL("test.properties")).create();
 
-        assertSame("Wrong result", url, strategy.locate(fs, locator));
-        EasyMock.verify(fs);
+        assertSame(url, strategy.locate(fs, locator));
+
+        verify(fs).locateFromURL(basePath, fileName);
+        verifyNoMoreInteractions(fs);
     }
 }

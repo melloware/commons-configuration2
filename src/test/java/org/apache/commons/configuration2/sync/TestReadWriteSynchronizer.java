@@ -16,24 +16,26 @@
  */
 package org.apache.commons.configuration2.sync;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.Random;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
-import org.easymock.EasyMock;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test class for {@code ReadWriteSynchronizer}.
- *
  */
 public class TestReadWriteSynchronizer {
     /**
      * A class representing an account.
      */
-    private static class Account {
+    private static final class Account {
         /** The amount stored in this account. */
         private long amount;
 
@@ -60,7 +62,7 @@ public class TestReadWriteSynchronizer {
      * A thread which performs a number of read operations on the bank's accounts and checks whether the amount of money is
      * consistent.
      */
-    private static class ReaderThread extends Thread {
+    private static final class ReaderThread extends Thread {
         /** The acounts to monitor. */
         private final Account[] accounts;
 
@@ -116,7 +118,7 @@ public class TestReadWriteSynchronizer {
      * transaction determines the account containing more money. Then a random number of money is transferred from this
      * account to the other one.
      */
-    private static class UpdateThread extends Thread {
+    private static final class UpdateThread extends Thread {
         /** The synchronizer. */
         private final Synchronizer sync;
 
@@ -194,14 +196,17 @@ public class TestReadWriteSynchronizer {
      */
     @Test
     public void testInitLock() {
-        final ReadWriteLock lock = EasyMock.createMock(ReadWriteLock.class);
-        final Lock readLock = EasyMock.createMock(Lock.class);
-        EasyMock.expect(lock.readLock()).andReturn(readLock);
-        readLock.lock();
-        EasyMock.replay(lock, readLock);
+        final ReadWriteLock lock = mock(ReadWriteLock.class);
+        final Lock readLock = mock(Lock.class);
+
+        when(lock.readLock()).thenReturn(readLock);
+
         final ReadWriteSynchronizer sync = new ReadWriteSynchronizer(lock);
         sync.beginRead();
-        EasyMock.verify(lock, readLock);
+
+        verify(lock).readLock();
+        verify(readLock).lock();
+        verifyNoMoreInteractions(lock, readLock);
     }
 
     /**
@@ -253,10 +258,10 @@ public class TestReadWriteSynchronizer {
         }
         for (final ReaderThread t : readerThreads) {
             t.join();
-            assertEquals("Got read errors", 0, t.getErrors());
+            assertEquals(0, t.getErrors());
         }
         sync.beginRead();
-        assertEquals("Wrong sum of money", TOTAL_MONEY, sumUpAccounts(account1, account2));
+        assertEquals(TOTAL_MONEY, sumUpAccounts(account1, account2));
         sync.endRead();
     }
 }

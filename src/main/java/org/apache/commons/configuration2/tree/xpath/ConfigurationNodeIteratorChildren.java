@@ -34,7 +34,7 @@ import org.apache.commons.lang3.StringUtils;
  * @since 1.3
  * @param <T> the type of the nodes this iterator deals with
  */
-class ConfigurationNodeIteratorChildren<T> extends ConfigurationNodeIteratorBase<T> {
+final class ConfigurationNodeIteratorChildren<T> extends AbstractConfigurationNodeIterator<T> {
 
     /** The list with the sub nodes to iterate over. */
     private final List<T> subNodes;
@@ -69,16 +69,6 @@ class ConfigurationNodeIteratorChildren<T> extends ConfigurationNodeIteratorBase
     @Override
     protected NodePointer createNodePointer(final int position) {
         return new ConfigurationNodePointer<>(getParent(), subNodes.get(position), getNodeHandler());
-    }
-
-    /**
-     * Returns the number of elements in this iteration. This is the number of elements in the children list.
-     *
-     * @return the number of elements
-     */
-    @Override
-    protected int size() {
-        return subNodes.size();
     }
 
     /**
@@ -118,11 +108,11 @@ class ConfigurationNodeIteratorChildren<T> extends ConfigurationNodeIteratorBase
     private List<T> createSubNodeListForName(final T node, final QName name) {
         final String compareName = qualifiedName(name);
         final List<T> result = new ArrayList<>();
-        for (final T child : getNodeHandler().getChildren(node)) {
+        getNodeHandler().getChildren(node).forEach(child -> {
             if (StringUtils.equals(compareName, getNodeHandler().nodeName(child))) {
                 result.add(child);
             }
-        }
+        });
         return result;
     }
 
@@ -140,11 +130,11 @@ class ConfigurationNodeIteratorChildren<T> extends ConfigurationNodeIteratorBase
         }
         final List<T> prefixChildren = new ArrayList<>(children.size());
         final String prefix = prefixName(name.getPrefix(), null);
-        for (final T child : children) {
+        children.forEach(child -> {
             if (StringUtils.startsWith(getNodeHandler().nodeName(child), prefix)) {
                 prefixChildren.add(child);
             }
-        }
+        });
         return prefixChildren;
     }
 
@@ -166,6 +156,16 @@ class ConfigurationNodeIteratorChildren<T> extends ConfigurationNodeIteratorBase
         }
 
         return -1;
+    }
+
+    /**
+     * Returns the number of elements in this iteration. This is the number of elements in the children list.
+     *
+     * @return the number of elements
+     */
+    @Override
+    protected int size() {
+        return subNodes.size();
     }
 
 }

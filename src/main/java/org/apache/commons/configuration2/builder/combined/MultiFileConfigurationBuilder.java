@@ -75,320 +75,6 @@ public class MultiFileConfigurationBuilder<T extends FileBasedConfiguration> ext
      */
     private static final String KEY_INTERPOLATOR = "interpolator";
 
-    /** A cache for already created managed builders. */
-    private final ConcurrentMap<String, FileBasedConfigurationBuilder<T>> managedBuilders = new ConcurrentHashMap<>();
-
-    /** Stores the {@code ConfigurationInterpolator} object. */
-    private final AtomicReference<ConfigurationInterpolator> interpolator = new AtomicReference<>();
-
-    /**
-     * A flag for preventing reentrant access to managed builders on interpolation of the file name pattern.
-     */
-    private final ThreadLocal<Boolean> inInterpolation = new ThreadLocal<>();
-
-    /** A list for the event listeners to be passed to managed builders. */
-    private final EventListenerList configurationListeners = new EventListenerList();
-
-    /**
-     * A specialized event listener which gets registered at all managed builders. This listener just propagates
-     * notifications from managed builders to the listeners registered at this {@code MultiFileConfigurationBuilder}.
-     */
-    private final EventListener<ConfigurationBuilderEvent> managedBuilderDelegationListener = this::handleManagedBuilderEvent;
-
-    /**
-     * Creates a new instance of {@code MultiFileConfigurationBuilder} and sets initialization parameters and a flag whether
-     * initialization failures should be ignored.
-     *
-     * @param resCls the result configuration class
-     * @param params a map with initialization parameters
-     * @param allowFailOnInit a flag whether initialization errors should be ignored
-     * @throws IllegalArgumentException if the result class is <b>null</b>
-     */
-    public MultiFileConfigurationBuilder(final Class<? extends T> resCls, final Map<String, Object> params, final boolean allowFailOnInit) {
-        super(resCls, params, allowFailOnInit);
-    }
-
-    /**
-     * Creates a new instance of {@code MultiFileConfigurationBuilder} and sets initialization parameters.
-     *
-     * @param resCls the result configuration class
-     * @param params a map with initialization parameters
-     * @throws IllegalArgumentException if the result class is <b>null</b>
-     */
-    public MultiFileConfigurationBuilder(final Class<? extends T> resCls, final Map<String, Object> params) {
-        super(resCls, params);
-    }
-
-    /**
-     * Creates a new instance of {@code MultiFileConfigurationBuilder} without setting initialization parameters.
-     *
-     * @param resCls the result configuration class
-     * @throws IllegalArgumentException if the result class is <b>null</b>
-     */
-    public MultiFileConfigurationBuilder(final Class<? extends T> resCls) {
-        super(resCls);
-    }
-
-    /**
-     * {@inheritDoc} This method is overridden to adapt the return type.
-     */
-    @Override
-    public MultiFileConfigurationBuilder<T> configure(final BuilderParameters... params) {
-        super.configure(params);
-        return this;
-    }
-
-    /**
-     * {@inheritDoc} This implementation evaluates the file name pattern using the configured
-     * {@code ConfigurationInterpolator}. If this file has already been loaded, the corresponding builder is accessed.
-     * Otherwise, a new builder is created for loading this configuration file.
-     */
-    @Override
-    public T getConfiguration() throws ConfigurationException {
-        return getManagedBuilder().getConfiguration();
-    }
-
-    /**
-     * Returns the managed {@code FileBasedConfigurationBuilder} for the current file name pattern. It is determined based
-     * on the evaluation of the file name pattern using the configured {@code ConfigurationInterpolator}. If this is the
-     * first access to this configuration file, the builder is created.
-     *
-     * @return the configuration builder for the configuration corresponding to the current evaluation of the file name
-     *         pattern
-     * @throws ConfigurationException if the builder cannot be determined (e.g. due to missing initialization parameters)
-     */
-    public FileBasedConfigurationBuilder<T> getManagedBuilder() throws ConfigurationException {
-        final Map<String, Object> params = getParameters();
-        final MultiFileBuilderParametersImpl multiParams = MultiFileBuilderParametersImpl.fromParameters(params, true);
-        if (multiParams.getFilePattern() == null) {
-            throw new ConfigurationException("No file name pattern is set!");
-        }
-        final String fileName = fetchFileName(multiParams);
-
-        FileBasedConfigurationBuilder<T> builder = getManagedBuilders().get(fileName);
-        if (builder == null) {
-            builder = createInitializedManagedBuilder(fileName, createManagedBuilderParameters(params, multiParams));
-            final FileBasedConfigurationBuilder<T> newBuilder = ConcurrentUtils.putIfAbsent(getManagedBuilders(), fileName, builder);
-            if (newBuilder == builder) {
-                initListeners(newBuilder);
-            } else {
-                builder = newBuilder;
-            }
-        }
-        return builder;
-    }
-
-    /**
-     * {@inheritDoc} This implementation ensures that the listener is also added to managed configuration builders if
-     * necessary. Listeners for the builder-related event types are excluded because otherwise they would be triggered by
-     * the internally used configuration builders.
-     */
-    @Override
-    public synchronized <E extends Event> void addEventListener(final EventType<E> eventType, final EventListener<? super E> l) {
-        super.addEventListener(eventType, l);
-        if (isEventTypeForManagedBuilders(eventType)) {
-            for (final FileBasedConfigurationBuilder<T> b : getManagedBuilders().values()) {
-                b.addEventListener(eventType, l);
-            }
-            configurationListeners.addEventListener(eventType, l);
-        }
-    }
-
-    /**
-     * {@inheritDoc} This implementation ensures that the listener is also removed from managed configuration builders if
-     * necessary.
-     */
-    @Override
-    public synchronized <E extends Event> boolean removeEventListener(final EventType<E> eventType, final EventListener<? super E> l) {
-        final boolean result = super.removeEventListener(eventType, l);
-        if (isEventTypeForManagedBuilders(eventType)) {
-            for (final FileBasedConfigurationBuilder<T> b : getManagedBuilders().values()) {
-                b.removeEventListener(eventType, l);
-            }
-            configurationListeners.removeEventListener(eventType, l);
-        }
-        return result;
-    }
-
-    /**
-     * {@inheritDoc} This implementation clears the cache with all managed builders.
-     */
-    @Override
-    public synchronized void resetParameters() {
-        for (final FileBasedConfigurationBuilder<T> b : getManagedBuilders().values()) {
-            b.removeEventListener(ConfigurationBuilderEvent.ANY, managedBuilderDelegationListener);
-        }
-        getManagedBuilders().clear();
-        interpolator.set(null);
-        super.resetParameters();
-    }
-
-    /**
-     * Returns the {@code ConfigurationInterpolator} used by this instance. This is the object used for evaluating the file
-     * name pattern. It is created on demand.
-     *
-     * @return the {@code ConfigurationInterpolator}
-     */
-    protected ConfigurationInterpolator getInterpolator() {
-        ConfigurationInterpolator result;
-        boolean done;
-
-        // This might create multiple instances under high load,
-        // however, always the same instance is returned.
-        do {
-            result = interpolator.get();
-            if (result != null) {
-                done = true;
-            } else {
-                result = createInterpolator();
-                done = interpolator.compareAndSet(null, result);
-            }
-        } while (!done);
-
-        return result;
-    }
-
-    /**
-     * Creates the {@code ConfigurationInterpolator} to be used by this instance. This method is called when a file name is
-     * to be constructed, but no current {@code ConfigurationInterpolator} instance is available. It obtains an instance
-     * from this builder's parameters. If no properties of the {@code ConfigurationInterpolator} are specified in the
-     * parameters, a default instance without lookups is returned (which is probably not very helpful).
-     *
-     * @return the {@code ConfigurationInterpolator} to be used
-     */
-    protected ConfigurationInterpolator createInterpolator() {
-        final InterpolatorSpecification spec = BasicBuilderParameters.fetchInterpolatorSpecification(getParameters());
-        return ConfigurationInterpolator.fromSpecification(spec);
-    }
-
-    /**
-     * Determines the file name of a configuration based on the file name pattern. This method is called on every access to
-     * this builder's configuration. It obtains the {@link ConfigurationInterpolator} from this builder's parameters and
-     * uses it to interpolate the file name pattern.
-     *
-     * @param multiParams the parameters object for this builder
-     * @return the name of the configuration file to be loaded
-     */
-    protected String constructFileName(final MultiFileBuilderParametersImpl multiParams) {
-        final ConfigurationInterpolator ci = getInterpolator();
-        return String.valueOf(ci.interpolate(multiParams.getFilePattern()));
-    }
-
-    /**
-     * Creates a builder for a managed configuration. This method is called whenever a configuration for a file name is
-     * requested which has not yet been loaded. The passed in map with parameters is populated from this builder's
-     * configuration (i.e. the basic parameters plus the optional parameters for managed builders). This base implementation
-     * creates a standard builder for file-based configurations. Derived classes may override it to create special purpose
-     * builders.
-     *
-     * @param fileName the name of the file to be loaded
-     * @param params a map with initialization parameters for the new builder
-     * @return the newly created builder instance
-     * @throws ConfigurationException if an error occurs
-     */
-    protected FileBasedConfigurationBuilder<T> createManagedBuilder(final String fileName, final Map<String, Object> params) throws ConfigurationException {
-        return new FileBasedConfigurationBuilder<>(getResultClass(), params, isAllowFailOnInit());
-    }
-
-    /**
-     * Creates a fully initialized builder for a managed configuration. This method is called by {@code getConfiguration()}
-     * whenever a configuration file is requested which has not yet been loaded. This implementation delegates to
-     * {@code createManagedBuilder()} for actually creating the builder object. Then it sets the location to the
-     * configuration file.
-     *
-     * @param fileName the name of the file to be loaded
-     * @param params a map with initialization parameters for the new builder
-     * @return the newly created and initialized builder instance
-     * @throws ConfigurationException if an error occurs
-     */
-    protected FileBasedConfigurationBuilder<T> createInitializedManagedBuilder(final String fileName, final Map<String, Object> params)
-        throws ConfigurationException {
-        final FileBasedConfigurationBuilder<T> managedBuilder = createManagedBuilder(fileName, params);
-        managedBuilder.getFileHandler().setFileName(fileName);
-        return managedBuilder;
-    }
-
-    /**
-     * Returns the map with the managed builders created so far by this {@code MultiFileConfigurationBuilder}. This map is
-     * exposed to derived classes so they can access managed builders directly. However, derived classes are not expected to
-     * manipulate this map.
-     *
-     * @return the map with the managed builders
-     */
-    protected ConcurrentMap<String, FileBasedConfigurationBuilder<T>> getManagedBuilders() {
-        return managedBuilders;
-    }
-
-    /**
-     * Registers event listeners at the passed in newly created managed builder. This method registers a special
-     * {@code EventListener} which propagates builder events to listeners registered at this builder. In addition,
-     * {@code ConfigurationListener} and {@code ConfigurationErrorListener} objects are registered at the new builder.
-     *
-     * @param newBuilder the builder to be initialized
-     */
-    private void initListeners(final FileBasedConfigurationBuilder<T> newBuilder) {
-        copyEventListeners(newBuilder, configurationListeners);
-        newBuilder.addEventListener(ConfigurationBuilderEvent.ANY, managedBuilderDelegationListener);
-    }
-
-    /**
-     * Generates a file name for a managed builder based on the file name pattern. This method prevents infinite loops which
-     * could happen if the file name pattern cannot be resolved and the {@code ConfigurationInterpolator} used by this
-     * object causes a recursive lookup to this builder's configuration.
-     *
-     * @param multiParams the current builder parameters
-     * @return the file name for a managed builder
-     */
-    private String fetchFileName(final MultiFileBuilderParametersImpl multiParams) {
-        String fileName;
-        final Boolean reentrant = inInterpolation.get();
-        if (reentrant != null && reentrant.booleanValue()) {
-            fileName = multiParams.getFilePattern();
-        } else {
-            inInterpolation.set(Boolean.TRUE);
-            try {
-                fileName = constructFileName(multiParams);
-            } finally {
-                inInterpolation.set(Boolean.FALSE);
-            }
-        }
-        return fileName;
-    }
-
-    /**
-     * Handles events received from managed configuration builders. This method creates a new event with a source pointing
-     * to this builder and propagates it to all registered listeners.
-     *
-     * @param event the event received from a managed builder
-     */
-    private void handleManagedBuilderEvent(final ConfigurationBuilderEvent event) {
-        if (ConfigurationBuilderEvent.RESET.equals(event.getEventType())) {
-            resetResult();
-        } else {
-            fireBuilderEvent(createEventWithChangedSource(event));
-        }
-    }
-
-    /**
-     * Creates a new {@code ConfigurationBuilderEvent} based on the passed in event, but with the source changed to this
-     * builder. This method is called when an event was received from a managed builder. In this case, the event has to be
-     * passed to the builder listeners registered at this object, but with the correct source property.
-     *
-     * @param event the event received from a managed builder
-     * @return the event to be propagated
-     */
-    private ConfigurationBuilderEvent createEventWithChangedSource(final ConfigurationBuilderEvent event) {
-        if (ConfigurationBuilderResultCreatedEvent.RESULT_CREATED.equals(event.getEventType())) {
-            return new ConfigurationBuilderResultCreatedEvent(this, ConfigurationBuilderResultCreatedEvent.RESULT_CREATED,
-                ((ConfigurationBuilderResultCreatedEvent) event).getConfiguration());
-        }
-        @SuppressWarnings("unchecked")
-        final
-        // This is safe due to the constructor of ConfigurationBuilderEvent
-        EventType<? extends ConfigurationBuilderEvent> type = (EventType<? extends ConfigurationBuilderEvent>) event.getEventType();
-        return new ConfigurationBuilderEvent(this, type);
-    }
-
     /**
      * Creates a map with parameters for a new managed configuration builder. This method merges the basic parameters set
      * for this builder with the specific parameters object for managed builders (if provided).
@@ -419,5 +105,313 @@ public class MultiFileConfigurationBuilder<T extends FileBasedConfiguration> ext
      */
     private static boolean isEventTypeForManagedBuilders(final EventType<?> eventType) {
         return !EventType.isInstanceOf(eventType, ConfigurationBuilderEvent.ANY);
+    }
+
+    /** A cache for already created managed builders. */
+    private final ConcurrentMap<String, FileBasedConfigurationBuilder<T>> managedBuilders = new ConcurrentHashMap<>();
+
+    /** Stores the {@code ConfigurationInterpolator} object. */
+    private final AtomicReference<ConfigurationInterpolator> interpolator = new AtomicReference<>();
+
+    /**
+     * A flag for preventing reentrant access to managed builders on interpolation of the file name pattern.
+     */
+    private final ThreadLocal<Boolean> inInterpolation = new ThreadLocal<>();
+
+    /** A list for the event listeners to be passed to managed builders. */
+    private final EventListenerList configurationListeners = new EventListenerList();
+
+    /**
+     * A specialized event listener which gets registered at all managed builders. This listener just propagates
+     * notifications from managed builders to the listeners registered at this {@code MultiFileConfigurationBuilder}.
+     */
+    private final EventListener<ConfigurationBuilderEvent> managedBuilderDelegationListener = this::handleManagedBuilderEvent;
+
+    /**
+     * Creates a new instance of {@code MultiFileConfigurationBuilder} without setting initialization parameters.
+     *
+     * @param resCls the result configuration class
+     * @throws IllegalArgumentException if the result class is <b>null</b>
+     */
+    public MultiFileConfigurationBuilder(final Class<? extends T> resCls) {
+        super(resCls);
+    }
+
+    /**
+     * Creates a new instance of {@code MultiFileConfigurationBuilder} and sets initialization parameters.
+     *
+     * @param resCls the result configuration class
+     * @param params a map with initialization parameters
+     * @throws IllegalArgumentException if the result class is <b>null</b>
+     */
+    public MultiFileConfigurationBuilder(final Class<? extends T> resCls, final Map<String, Object> params) {
+        super(resCls, params);
+    }
+
+    /**
+     * Creates a new instance of {@code MultiFileConfigurationBuilder} and sets initialization parameters and a flag whether
+     * initialization failures should be ignored.
+     *
+     * @param resCls the result configuration class
+     * @param params a map with initialization parameters
+     * @param allowFailOnInit a flag whether initialization errors should be ignored
+     * @throws IllegalArgumentException if the result class is <b>null</b>
+     */
+    public MultiFileConfigurationBuilder(final Class<? extends T> resCls, final Map<String, Object> params, final boolean allowFailOnInit) {
+        super(resCls, params, allowFailOnInit);
+    }
+
+    /**
+     * {@inheritDoc} This implementation ensures that the listener is also added to managed configuration builders if
+     * necessary. Listeners for the builder-related event types are excluded because otherwise they would be triggered by
+     * the internally used configuration builders.
+     */
+    @Override
+    public synchronized <E extends Event> void addEventListener(final EventType<E> eventType, final EventListener<? super E> l) {
+        super.addEventListener(eventType, l);
+        if (isEventTypeForManagedBuilders(eventType)) {
+            getManagedBuilders().values().forEach(b -> b.addEventListener(eventType, l));
+            configurationListeners.addEventListener(eventType, l);
+        }
+    }
+
+    /**
+     * {@inheritDoc} This method is overridden to adapt the return type.
+     */
+    @Override
+    public MultiFileConfigurationBuilder<T> configure(final BuilderParameters... params) {
+        super.configure(params);
+        return this;
+    }
+
+    /**
+     * Determines the file name of a configuration based on the file name pattern. This method is called on every access to
+     * this builder's configuration. It obtains the {@link ConfigurationInterpolator} from this builder's parameters and
+     * uses it to interpolate the file name pattern.
+     *
+     * @param multiParams the parameters object for this builder
+     * @return the name of the configuration file to be loaded
+     */
+    protected String constructFileName(final MultiFileBuilderParametersImpl multiParams) {
+        final ConfigurationInterpolator ci = getInterpolator();
+        return String.valueOf(ci.interpolate(multiParams.getFilePattern()));
+    }
+
+    /**
+     * Creates a new {@code ConfigurationBuilderEvent} based on the passed in event, but with the source changed to this
+     * builder. This method is called when an event was received from a managed builder. In this case, the event has to be
+     * passed to the builder listeners registered at this object, but with the correct source property.
+     *
+     * @param event the event received from a managed builder
+     * @return the event to be propagated
+     */
+    private ConfigurationBuilderEvent createEventWithChangedSource(final ConfigurationBuilderEvent event) {
+        if (ConfigurationBuilderResultCreatedEvent.RESULT_CREATED.equals(event.getEventType())) {
+            return new ConfigurationBuilderResultCreatedEvent(this, ConfigurationBuilderResultCreatedEvent.RESULT_CREATED,
+                ((ConfigurationBuilderResultCreatedEvent) event).getConfiguration());
+        }
+        @SuppressWarnings("unchecked")
+        final
+        // This is safe due to the constructor of ConfigurationBuilderEvent
+        EventType<? extends ConfigurationBuilderEvent> type = (EventType<? extends ConfigurationBuilderEvent>) event.getEventType();
+        return new ConfigurationBuilderEvent(this, type);
+    }
+
+    /**
+     * Creates a fully initialized builder for a managed configuration. This method is called by {@code getConfiguration()}
+     * whenever a configuration file is requested which has not yet been loaded. This implementation delegates to
+     * {@code createManagedBuilder()} for actually creating the builder object. Then it sets the location to the
+     * configuration file.
+     *
+     * @param fileName the name of the file to be loaded
+     * @param params a map with initialization parameters for the new builder
+     * @return the newly created and initialized builder instance
+     * @throws ConfigurationException if an error occurs
+     */
+    protected FileBasedConfigurationBuilder<T> createInitializedManagedBuilder(final String fileName, final Map<String, Object> params)
+        throws ConfigurationException {
+        final FileBasedConfigurationBuilder<T> managedBuilder = createManagedBuilder(fileName, params);
+        managedBuilder.getFileHandler().setFileName(fileName);
+        return managedBuilder;
+    }
+
+    /**
+     * Creates the {@code ConfigurationInterpolator} to be used by this instance. This method is called when a file name is
+     * to be constructed, but no current {@code ConfigurationInterpolator} instance is available. It obtains an instance
+     * from this builder's parameters. If no properties of the {@code ConfigurationInterpolator} are specified in the
+     * parameters, a default instance without lookups is returned (which is probably not very helpful).
+     *
+     * @return the {@code ConfigurationInterpolator} to be used
+     */
+    protected ConfigurationInterpolator createInterpolator() {
+        final InterpolatorSpecification spec = BasicBuilderParameters.fetchInterpolatorSpecification(getParameters());
+        return ConfigurationInterpolator.fromSpecification(spec);
+    }
+
+    /**
+     * Creates a builder for a managed configuration. This method is called whenever a configuration for a file name is
+     * requested which has not yet been loaded. The passed in map with parameters is populated from this builder's
+     * configuration (i.e. the basic parameters plus the optional parameters for managed builders). This base implementation
+     * creates a standard builder for file-based configurations. Derived classes may override it to create special purpose
+     * builders.
+     *
+     * @param fileName the name of the file to be loaded
+     * @param params a map with initialization parameters for the new builder
+     * @return the newly created builder instance
+     * @throws ConfigurationException if an error occurs
+     */
+    protected FileBasedConfigurationBuilder<T> createManagedBuilder(final String fileName, final Map<String, Object> params) throws ConfigurationException {
+        return new FileBasedConfigurationBuilder<>(getResultClass(), params, isAllowFailOnInit());
+    }
+
+    /**
+     * Generates a file name for a managed builder based on the file name pattern. This method prevents infinite loops which
+     * could happen if the file name pattern cannot be resolved and the {@code ConfigurationInterpolator} used by this
+     * object causes a recursive lookup to this builder's configuration.
+     *
+     * @param multiParams the current builder parameters
+     * @return the file name for a managed builder
+     */
+    private String fetchFileName(final MultiFileBuilderParametersImpl multiParams) {
+        String fileName;
+        final Boolean reentrant = inInterpolation.get();
+        if (reentrant != null && reentrant.booleanValue()) {
+            fileName = multiParams.getFilePattern();
+        } else {
+            inInterpolation.set(Boolean.TRUE);
+            try {
+                fileName = constructFileName(multiParams);
+            } finally {
+                inInterpolation.set(Boolean.FALSE);
+            }
+        }
+        return fileName;
+    }
+
+    /**
+     * {@inheritDoc} This implementation evaluates the file name pattern using the configured
+     * {@code ConfigurationInterpolator}. If this file has already been loaded, the corresponding builder is accessed.
+     * Otherwise, a new builder is created for loading this configuration file.
+     */
+    @Override
+    public T getConfiguration() throws ConfigurationException {
+        return getManagedBuilder().getConfiguration();
+    }
+
+    /**
+     * Gets the {@code ConfigurationInterpolator} used by this instance. This is the object used for evaluating the file
+     * name pattern. It is created on demand.
+     *
+     * @return the {@code ConfigurationInterpolator}
+     */
+    protected ConfigurationInterpolator getInterpolator() {
+        ConfigurationInterpolator result;
+        boolean done;
+
+        // This might create multiple instances under high load,
+        // however, always the same instance is returned.
+        do {
+            result = interpolator.get();
+            if (result != null) {
+                done = true;
+            } else {
+                result = createInterpolator();
+                done = interpolator.compareAndSet(null, result);
+            }
+        } while (!done);
+
+        return result;
+    }
+
+    /**
+     * Gets the managed {@code FileBasedConfigurationBuilder} for the current file name pattern. It is determined based
+     * on the evaluation of the file name pattern using the configured {@code ConfigurationInterpolator}. If this is the
+     * first access to this configuration file, the builder is created.
+     *
+     * @return the configuration builder for the configuration corresponding to the current evaluation of the file name
+     *         pattern
+     * @throws ConfigurationException if the builder cannot be determined (e.g. due to missing initialization parameters)
+     */
+    public FileBasedConfigurationBuilder<T> getManagedBuilder() throws ConfigurationException {
+        final Map<String, Object> params = getParameters();
+        final MultiFileBuilderParametersImpl multiParams = MultiFileBuilderParametersImpl.fromParameters(params, true);
+        if (multiParams.getFilePattern() == null) {
+            throw new ConfigurationException("No file name pattern is set!");
+        }
+        final String fileName = fetchFileName(multiParams);
+
+        FileBasedConfigurationBuilder<T> builder = getManagedBuilders().get(fileName);
+        if (builder == null) {
+            builder = createInitializedManagedBuilder(fileName, createManagedBuilderParameters(params, multiParams));
+            final FileBasedConfigurationBuilder<T> newBuilder = ConcurrentUtils.putIfAbsent(getManagedBuilders(), fileName, builder);
+            if (newBuilder == builder) {
+                initListeners(newBuilder);
+            } else {
+                builder = newBuilder;
+            }
+        }
+        return builder;
+    }
+
+    /**
+     * Gets the map with the managed builders created so far by this {@code MultiFileConfigurationBuilder}. This map is
+     * exposed to derived classes so they can access managed builders directly. However, derived classes are not expected to
+     * manipulate this map.
+     *
+     * @return the map with the managed builders
+     */
+    protected ConcurrentMap<String, FileBasedConfigurationBuilder<T>> getManagedBuilders() {
+        return managedBuilders;
+    }
+
+    /**
+     * Handles events received from managed configuration builders. This method creates a new event with a source pointing
+     * to this builder and propagates it to all registered listeners.
+     *
+     * @param event the event received from a managed builder
+     */
+    private void handleManagedBuilderEvent(final ConfigurationBuilderEvent event) {
+        if (ConfigurationBuilderEvent.RESET.equals(event.getEventType())) {
+            resetResult();
+        } else {
+            fireBuilderEvent(createEventWithChangedSource(event));
+        }
+    }
+
+    /**
+     * Registers event listeners at the passed in newly created managed builder. This method registers a special
+     * {@code EventListener} which propagates builder events to listeners registered at this builder. In addition,
+     * {@code ConfigurationListener} and {@code ConfigurationErrorListener} objects are registered at the new builder.
+     *
+     * @param newBuilder the builder to be initialized
+     */
+    private void initListeners(final FileBasedConfigurationBuilder<T> newBuilder) {
+        copyEventListeners(newBuilder, configurationListeners);
+        newBuilder.addEventListener(ConfigurationBuilderEvent.ANY, managedBuilderDelegationListener);
+    }
+
+    /**
+     * {@inheritDoc} This implementation ensures that the listener is also removed from managed configuration builders if
+     * necessary.
+     */
+    @Override
+    public synchronized <E extends Event> boolean removeEventListener(final EventType<E> eventType, final EventListener<? super E> l) {
+        final boolean result = super.removeEventListener(eventType, l);
+        if (isEventTypeForManagedBuilders(eventType)) {
+            getManagedBuilders().values().forEach(b -> b.removeEventListener(eventType, l));
+            configurationListeners.removeEventListener(eventType, l);
+        }
+        return result;
+    }
+
+    /**
+     * {@inheritDoc} This implementation clears the cache with all managed builders.
+     */
+    @Override
+    public synchronized void resetParameters() {
+        getManagedBuilders().values().forEach(b -> b.removeEventListener(ConfigurationBuilderEvent.ANY, managedBuilderDelegationListener));
+        getManagedBuilders().clear();
+        interpolator.set(null);
+        super.resetParameters();
     }
 }

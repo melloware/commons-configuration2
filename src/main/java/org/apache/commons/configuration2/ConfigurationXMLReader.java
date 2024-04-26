@@ -38,7 +38,6 @@ import org.xml.sax.helpers.AttributesImpl;
  * This class provides dummy implementations for most of the methods defined in the {@code XMLReader} interface that are
  * not used for this special purpose. There will be concrete sub classes that process specific configuration classes.
  * </p>
- *
  */
 public abstract class ConfigurationXMLReader implements XMLReader {
     /** Constant for the namespace URI. */
@@ -67,179 +66,15 @@ public abstract class ConfigurationXMLReader implements XMLReader {
     }
 
     /**
-     * Parses the current configuration object. The passed system ID will be ignored.
+     * Fires a SAX characters event.
      *
-     * @param systemId the system ID (ignored)
-     * @throws IOException if no configuration was specified
-     * @throws SAXException if an error occurs during parsing
+     * @param text the text
      */
-    @Override
-    public void parse(final String systemId) throws IOException, SAXException {
-        parseConfiguration();
-    }
-
-    /**
-     * Parses the actual configuration object. The passed input source will be ignored.
-     *
-     * @param input the input source (ignored)
-     * @throws IOException if no configuration was specified
-     * @throws SAXException if an error occurs during parsing
-     */
-    @Override
-    public void parse(final InputSource input) throws IOException, SAXException {
-        parseConfiguration();
-    }
-
-    /**
-     * Dummy implementation of the interface method.
-     *
-     * @param name the name of the feature
-     * @return always <b>false</b> (no features are supported)
-     */
-    @Override
-    public boolean getFeature(final String name) {
-        return false;
-    }
-
-    /**
-     * Dummy implementation of the interface method.
-     *
-     * @param name the name of the feature to be set
-     * @param value the value of the feature
-     */
-    @Override
-    public void setFeature(final String name, final boolean value) {
-    }
-
-    /**
-     * Returns the actually set content handler.
-     *
-     * @return the content handler
-     */
-    @Override
-    public ContentHandler getContentHandler() {
-        return contentHandler;
-    }
-
-    /**
-     * Sets the content handler. The object specified here will receive SAX events during parsing.
-     *
-     * @param handler the content handler
-     */
-    @Override
-    public void setContentHandler(final ContentHandler handler) {
-        contentHandler = handler;
-    }
-
-    /**
-     * Returns the DTD handler. This class does not support DTD handlers, so this method always returns <b>null</b>.
-     *
-     * @return the DTD handler
-     */
-    @Override
-    public DTDHandler getDTDHandler() {
-        return null;
-    }
-
-    /**
-     * Sets the DTD handler. The passed value is ignored.
-     *
-     * @param handler the handler to be set
-     */
-    @Override
-    public void setDTDHandler(final DTDHandler handler) {
-    }
-
-    /**
-     * Returns the entity resolver. This class does not support an entity resolver, so this method always returns
-     * <b>null</b>.
-     *
-     * @return the entity resolver
-     */
-    @Override
-    public EntityResolver getEntityResolver() {
-        return null;
-    }
-
-    /**
-     * Sets the entity resolver. The passed value is ignored.
-     *
-     * @param resolver the entity resolver
-     */
-    @Override
-    public void setEntityResolver(final EntityResolver resolver) {
-    }
-
-    /**
-     * Returns the error handler. This class does not support an error handler, so this method always returns <b>null</b>.
-     *
-     * @return the error handler
-     */
-    @Override
-    public ErrorHandler getErrorHandler() {
-        return null;
-    }
-
-    /**
-     * Sets the error handler. The passed value is ignored.
-     *
-     * @param handler the error handler
-     */
-    @Override
-    public void setErrorHandler(final ErrorHandler handler) {
-    }
-
-    /**
-     * Dummy implementation of the interface method. No properties are supported, so this method always returns <b>null</b>.
-     *
-     * @param name the name of the requested property
-     * @return the property value
-     */
-    @Override
-    public Object getProperty(final String name) {
-        return null;
-    }
-
-    /**
-     * Dummy implementation of the interface method. No properties are supported, so a call of this method just has no
-     * effect.
-     *
-     * @param name the property name
-     * @param value the property value
-     */
-    @Override
-    public void setProperty(final String name, final Object value) {
-    }
-
-    /**
-     * Returns the name to be used for the root element.
-     *
-     * @return the name for the root element
-     */
-    public String getRootName() {
-        return rootName;
-    }
-
-    /**
-     * Sets the name for the root element.
-     *
-     * @param string the name for the root element.
-     */
-    public void setRootName(final String string) {
-        rootName = string;
-    }
-
-    /**
-     * Fires a SAX element start event.
-     *
-     * @param name the name of the actual element
-     * @param attribs the attributes of this element (can be <b>null</b>)
-     */
-    protected void fireElementStart(final String name, final Attributes attribs) {
+    protected void fireCharacters(final String text) {
         if (getException() == null) {
             try {
-                final Attributes at = attribs == null ? EMPTY_ATTRS : attribs;
-                getContentHandler().startElement(NS_URI, name, name, at);
+                final char[] ch = text.toCharArray();
+                getContentHandler().characters(ch, 0, ch.length);
             } catch (final SAXException ex) {
                 exception = ex;
             }
@@ -262,15 +97,16 @@ public abstract class ConfigurationXMLReader implements XMLReader {
     }
 
     /**
-     * Fires a SAX characters event.
+     * Fires a SAX element start event.
      *
-     * @param text the text
+     * @param name the name of the actual element
+     * @param attribs the attributes of this element (can be <b>null</b>)
      */
-    protected void fireCharacters(final String text) {
+    protected void fireElementStart(final String name, final Attributes attribs) {
         if (getException() == null) {
             try {
-                final char[] ch = text.toCharArray();
-                getContentHandler().characters(ch, 0, ch.length);
+                final Attributes at = attribs == null ? EMPTY_ATTRS : attribs;
+                getContentHandler().startElement(NS_URI, name, name, at);
             } catch (final SAXException ex) {
                 exception = ex;
             }
@@ -278,12 +114,115 @@ public abstract class ConfigurationXMLReader implements XMLReader {
     }
 
     /**
-     * Returns a reference to an exception that occurred during parsing.
+     * Gets the actually set content handler.
+     *
+     * @return the content handler
+     */
+    @Override
+    public ContentHandler getContentHandler() {
+        return contentHandler;
+    }
+
+    /**
+     * Gets the DTD handler. This class does not support DTD handlers, so this method always returns <b>null</b>.
+     *
+     * @return the DTD handler
+     */
+    @Override
+    public DTDHandler getDTDHandler() {
+        return null;
+    }
+
+    /**
+     * Gets the entity resolver. This class does not support an entity resolver, so this method always returns
+     * <b>null</b>.
+     *
+     * @return the entity resolver
+     */
+    @Override
+    public EntityResolver getEntityResolver() {
+        return null;
+    }
+
+    /**
+     * Gets the error handler. This class does not support an error handler, so this method always returns <b>null</b>.
+     *
+     * @return the error handler
+     */
+    @Override
+    public ErrorHandler getErrorHandler() {
+        return null;
+    }
+
+    /**
+     * Gets a reference to an exception that occurred during parsing.
      *
      * @return a SAXExcpetion or <b>null</b> if none occurred
      */
     public SAXException getException() {
         return exception;
+    }
+
+    /**
+     * Dummy implementation of the interface method.
+     *
+     * @param name the name of the feature
+     * @return always <b>false</b> (no features are supported)
+     */
+    @Override
+    public boolean getFeature(final String name) {
+        return false;
+    }
+
+    /**
+     * Gets a reference to the configuration that is parsed by this object.
+     *
+     * @return the parsed configuration
+     */
+    public abstract Configuration getParsedConfiguration();
+
+    /**
+     * Dummy implementation of the interface method. No properties are supported, so this method always returns <b>null</b>.
+     *
+     * @param name the name of the requested property
+     * @return the property value
+     */
+    @Override
+    public Object getProperty(final String name) {
+        return null;
+    }
+
+    /**
+     * Gets the name to be used for the root element.
+     *
+     * @return the name for the root element
+     */
+    public String getRootName() {
+        return rootName;
+    }
+
+    /**
+     * Parses the actual configuration object. The passed input source will be ignored.
+     *
+     * @param input the input source (ignored)
+     * @throws IOException if no configuration was specified
+     * @throws SAXException if an error occurs during parsing
+     */
+    @Override
+    public void parse(final InputSource input) throws IOException, SAXException {
+        parseConfiguration();
+    }
+
+    /**
+     * Parses the current configuration object. The passed system ID will be ignored.
+     *
+     * @param systemId the system ID (ignored)
+     * @throws IOException if no configuration was specified
+     * @throws SAXException if an error occurs during parsing
+     */
+    @Override
+    public void parse(final String systemId) throws IOException, SAXException {
+        parseConfiguration();
     }
 
     /**
@@ -309,13 +248,6 @@ public abstract class ConfigurationXMLReader implements XMLReader {
     }
 
     /**
-     * Returns a reference to the configuration that is parsed by this object.
-     *
-     * @return the parsed configuration
-     */
-    public abstract Configuration getParsedConfiguration();
-
-    /**
      * Processes all keys stored in the actual configuration. This method is called by {@code parseConfiguration()} to start
      * the main parsing process. {@code parseConfiguration()} calls the content handler's {@code startDocument()} and
      * {@code endElement()} methods and cares for exception handling. The remaining actions are left to this method that
@@ -325,4 +257,71 @@ public abstract class ConfigurationXMLReader implements XMLReader {
      * @throws SAXException if a SAX error occurs
      */
     protected abstract void processKeys() throws IOException, SAXException;
+
+    /**
+     * Sets the content handler. The object specified here will receive SAX events during parsing.
+     *
+     * @param handler the content handler
+     */
+    @Override
+    public void setContentHandler(final ContentHandler handler) {
+        contentHandler = handler;
+    }
+
+    /**
+     * Sets the DTD handler. The passed value is ignored.
+     *
+     * @param handler the handler to be set
+     */
+    @Override
+    public void setDTDHandler(final DTDHandler handler) {
+    }
+
+    /**
+     * Sets the entity resolver. The passed value is ignored.
+     *
+     * @param resolver the entity resolver
+     */
+    @Override
+    public void setEntityResolver(final EntityResolver resolver) {
+    }
+
+    /**
+     * Sets the error handler. The passed value is ignored.
+     *
+     * @param handler the error handler
+     */
+    @Override
+    public void setErrorHandler(final ErrorHandler handler) {
+    }
+
+    /**
+     * Dummy implementation of the interface method.
+     *
+     * @param name the name of the feature to be set
+     * @param value the value of the feature
+     */
+    @Override
+    public void setFeature(final String name, final boolean value) {
+    }
+
+    /**
+     * Dummy implementation of the interface method. No properties are supported, so a call of this method just has no
+     * effect.
+     *
+     * @param name the property name
+     * @param value the property value
+     */
+    @Override
+    public void setProperty(final String name, final Object value) {
+    }
+
+    /**
+     * Sets the name for the root element.
+     *
+     * @param string the name for the root element.
+     */
+    public void setRootName(final String string) {
+        rootName = string;
+    }
 }

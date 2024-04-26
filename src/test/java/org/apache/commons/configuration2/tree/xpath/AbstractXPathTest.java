@@ -24,13 +24,12 @@ import org.apache.commons.configuration2.tree.InMemoryNodeModel;
 import org.apache.commons.configuration2.tree.NodeHandler;
 import org.apache.commons.jxpath.ri.model.NodeIterator;
 import org.apache.commons.jxpath.ri.model.NodePointer;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
  * A base class for testing classes of the XPath package. This base class creates a hierarchy of nodes in its setUp()
  * method that can be used for test cases.
- *
  */
 public abstract class AbstractXPathTest {
     /** Constant for the name of the counter attribute. */
@@ -129,7 +128,7 @@ public abstract class AbstractXPathTest {
         return cnt;
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         root = constructHierarchy(LEVEL_COUNT);
         handler = new InMemoryNodeModel(root).getNodeHandler();
@@ -138,7 +137,7 @@ public abstract class AbstractXPathTest {
     /**
      * Clears the test environment.
      */
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         root = null;
     }

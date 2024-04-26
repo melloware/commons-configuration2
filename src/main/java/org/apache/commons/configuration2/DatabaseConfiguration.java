@@ -17,7 +17,6 @@
 
 package org.apache.commons.configuration2;
 
-import javax.sql.DataSource;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+
+import javax.sql.DataSource;
 
 import org.apache.commons.configuration2.convert.DisabledListDelimiterHandler;
 import org.apache.commons.configuration2.convert.ListDelimiterHandler;
@@ -108,13 +109,166 @@ import org.apache.commons.lang3.StringUtils;
  * {@code commits} parameter of the constructors to <b>true</b>. If commits should not be performed (which is the
  * default behavior), it should be ensured that the connections returned by the {@code DataSource} are in auto-commit
  * mode.
- *
- * <h1>Note: Like JDBC itself, protection against SQL injection is left to the user.</h1>
+ * <p>
+ * <strong>Note: Like JDBC itself, protection against SQL injection is left to the user.</strong>
+ * </p>
  *
  * @since 1.0
- *
  */
 public class DatabaseConfiguration extends AbstractConfiguration {
+    /**
+     * An internally used helper class for simplifying database access through plain JDBC. This class provides a simple
+     * framework for creating and executing a JDBC statement. It especially takes care of proper handling of JDBC resources
+     * even in case of an error.
+     *
+     * @param <T> the type of the results produced by a JDBC operation
+     */
+    private abstract class AbstractJdbcOperation<T> {
+        /** Stores the connection. */
+        private Connection conn;
+
+        /** Stores the statement. */
+        private PreparedStatement pstmt;
+
+        /** Stores the result set. */
+        private ResultSet resultSet;
+
+        /** The type of the event to send in case of an error. */
+        private final EventType<? extends ConfigurationErrorEvent> errorEventType;
+
+        /** The type of the operation which caused an error. */
+        private final EventType<?> operationEventType;
+
+        /** The property configurationName for an error event. */
+        private final String errorPropertyName;
+
+        /** The property value for an error event. */
+        private final Object errorPropertyValue;
+
+        /**
+         * Creates a new instance of {@code JdbcOperation} and initializes the properties related to the error event.
+         *
+         * @param errEvType the type of the error event
+         * @param opType the operation event type
+         * @param errPropName the property configurationName for the error event
+         * @param errPropVal the property value for the error event
+         */
+        protected AbstractJdbcOperation(final EventType<? extends ConfigurationErrorEvent> errEvType, final EventType<?> opType, final String errPropName,
+            final Object errPropVal) {
+            errorEventType = errEvType;
+            operationEventType = opType;
+            errorPropertyName = errPropName;
+            errorPropertyValue = errPropVal;
+        }
+
+        /**
+         * Creates a {@code PreparedStatement} object for executing the specified SQL statement.
+         *
+         * @param sql the statement to be executed
+         * @param nameCol a flag whether the configurationName column should be taken into account
+         * @return the prepared statement object
+         * @throws SQLException if an SQL error occurs
+         */
+        protected PreparedStatement createStatement(final String sql, final boolean nameCol) throws SQLException {
+            final String statement;
+            if (nameCol && configurationNameColumn != null) {
+                final StringBuilder buf = new StringBuilder(sql);
+                buf.append(" AND ").append(configurationNameColumn).append("=?");
+                statement = buf.toString();
+            } else {
+                statement = sql;
+            }
+
+            pstmt = getConnection().prepareStatement(statement);
+            return pstmt;
+        }
+
+        /**
+         * Executes this operation. This method obtains a database connection and then delegates to {@code performOperation()}.
+         * Afterwards it performs the necessary clean up. Exceptions that are thrown during the JDBC operation are caught and
+         * transformed into configuration error events.
+         *
+         * @return the result of the operation
+         */
+        public T execute() {
+            T result = null;
+
+            if (getDatasource() != null) {
+                try {
+                    conn = getDatasource().getConnection();
+                    result = performOperation();
+
+                    if (isAutoCommit()) {
+                        conn.commit();
+                    }
+                } catch (final SQLException e) {
+                    fireError(errorEventType, operationEventType, errorPropertyName, errorPropertyValue, e);
+                } finally {
+                    close(conn, pstmt, resultSet);
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * Gets the current connection. This method can be called while {@code execute()} is running. It returns <b>null</b>
+         * otherwise.
+         *
+         * @return the current connection
+         */
+        protected Connection getConnection() {
+            return conn;
+        }
+
+        /**
+         * Creates an initializes a {@code PreparedStatement} object for executing an SQL statement. This method first calls
+         * {@code createStatement()} for creating the statement and then initializes the statement's parameters.
+         *
+         * @param sql the statement to be executed
+         * @param nameCol a flag whether the configurationName column should be taken into account
+         * @param params the parameters for the statement
+         * @return the initialized statement object
+         * @throws SQLException if an SQL error occurs
+         */
+        protected PreparedStatement initStatement(final String sql, final boolean nameCol, final Object... params) throws SQLException {
+            final PreparedStatement ps = createStatement(sql, nameCol);
+
+            int idx = 1;
+            for (final Object param : params) {
+                ps.setObject(idx++, param);
+            }
+            if (nameCol && configurationNameColumn != null) {
+                ps.setString(idx, configurationName);
+            }
+
+            return ps;
+        }
+
+        /**
+         * Creates a {@code PreparedStatement} for a query, initializes it and executes it. The resulting {@code ResultSet} is
+         * returned.
+         *
+         * @param sql the statement to be executed
+         * @param nameCol a flag whether the configurationName column should be taken into account
+         * @param params the parameters for the statement
+         * @return the {@code ResultSet} produced by the query
+         * @throws SQLException if an SQL error occurs
+         */
+        protected ResultSet openResultSet(final String sql, final boolean nameCol, final Object... params) throws SQLException {
+            return resultSet = initStatement(sql, nameCol, params).executeQuery();
+        }
+
+        /**
+         * Performs the JDBC operation. This method is called by {@code execute()} after this object has been fully initialized.
+         * Here the actual JDBC logic has to be placed.
+         *
+         * @return the result of the operation
+         * @throws SQLException if an SQL error occurs
+         */
+        protected abstract T performOperation() throws SQLException;
+    }
+
     /** Constant for the statement used by getProperty. */
     private static final String SQL_GET_PROPERTY = "SELECT * FROM %s WHERE %s =?";
 
@@ -129,6 +283,18 @@ public class DatabaseConfiguration extends AbstractConfiguration {
 
     /** Constant for the statement used by getKeys. */
     private static final String SQL_GET_KEYS = "SELECT DISTINCT %s FROM %s WHERE 1 = 1";
+
+    /**
+     * Converts a CLOB to a string.
+     *
+     * @param clob the CLOB to be converted
+     * @return the extracted string value
+     * @throws SQLException if an error occurs
+     */
+    private static Object convertClob(final Clob clob) throws SQLException {
+        final int len = (int) clob.length();
+        return len > 0 ? clob.getSubString(1, len) : StringUtils.EMPTY;
+    }
 
     /** The data source to connect to the database. */
     private DataSource dataSource;
@@ -160,165 +326,6 @@ public class DatabaseConfiguration extends AbstractConfiguration {
     }
 
     /**
-     * Returns the {@code DataSource} for obtaining database connections.
-     *
-     * @return the {@code DataSource}
-     */
-    public DataSource getDataSource() {
-        return dataSource;
-    }
-
-    /**
-     * Sets the {@code DataSource} for obtaining database connections.
-     *
-     * @param dataSource the {@code DataSource}
-     */
-    public void setDataSource(final DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-
-    /**
-     * Returns the name of the table containing configuration data.
-     *
-     * @return the name of the table to be queried
-     */
-    public String getTable() {
-        return table;
-    }
-
-    /**
-     * Sets the name of the table containing configuration data.
-     *
-     * @param table the table name
-     */
-    public void setTable(final String table) {
-        this.table = table;
-    }
-
-    /**
-     * Returns the name of the table column with the configuration name.
-     *
-     * @return the name of the configuration name column
-     */
-    public String getConfigurationNameColumn() {
-        return configurationNameColumn;
-    }
-
-    /**
-     * Sets the name of the table column with the configuration name.
-     *
-     * @param configurationNameColumn the name of the column with the configuration name
-     */
-    public void setConfigurationNameColumn(final String configurationNameColumn) {
-        this.configurationNameColumn = configurationNameColumn;
-    }
-
-    /**
-     * Returns the name of the column containing the configuration keys.
-     *
-     * @return the name of the key column
-     */
-    public String getKeyColumn() {
-        return keyColumn;
-    }
-
-    /**
-     * Sets the name of the column containing the configuration keys.
-     *
-     * @param keyColumn the name of the key column
-     */
-    public void setKeyColumn(final String keyColumn) {
-        this.keyColumn = keyColumn;
-    }
-
-    /**
-     * Returns the name of the column containing the configuration values.
-     *
-     * @return the name of the value column
-     */
-    public String getValueColumn() {
-        return valueColumn;
-    }
-
-    /**
-     * Sets the name of the column containing the configuration values.
-     *
-     * @param valueColumn the name of the value column
-     */
-    public void setValueColumn(final String valueColumn) {
-        this.valueColumn = valueColumn;
-    }
-
-    /**
-     * Returns the name of this configuration instance.
-     *
-     * @return the name of this configuration
-     */
-    public String getConfigurationName() {
-        return configurationName;
-    }
-
-    /**
-     * Sets the name of this configuration instance.
-     *
-     * @param configurationName the name of this configuration
-     */
-    public void setConfigurationName(final String configurationName) {
-        this.configurationName = configurationName;
-    }
-
-    /**
-     * Returns a flag whether this configuration performs commits after database updates.
-     *
-     * @return a flag whether commits are performed
-     */
-    public boolean isAutoCommit() {
-        return autoCommit;
-    }
-
-    /**
-     * Sets the auto commit flag. If set to <b>true</b>, this configuration performs a commit after each database update.
-     *
-     * @param autoCommit the auto commit flag
-     */
-    public void setAutoCommit(final boolean autoCommit) {
-        this.autoCommit = autoCommit;
-    }
-
-    /**
-     * Returns the value of the specified property. If this causes a database error, an error event will be generated of
-     * type {@code READ} with the causing exception. The event's {@code propertyName} is set to the passed in property key,
-     * the {@code propertyValue} is undefined.
-     *
-     * @param key the key of the desired property
-     * @return the value of this property
-     */
-    @Override
-    protected Object getPropertyInternal(final String key) {
-        final JdbcOperation<Object> op = new JdbcOperation<Object>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, key, null) {
-            @Override
-            protected Object performOperation() throws SQLException {
-                final List<Object> results = new ArrayList<>();
-                try (ResultSet rs = openResultSet(String.format(SQL_GET_PROPERTY, table, keyColumn), true, key)) {
-                    while (rs.next()) {
-                        final Object value = extractPropertyValue(rs);
-                        // Split value if it contains the list delimiter
-                        for (final Object o : getListDelimiterHandler().parse(value)) {
-                            results.add(o);
-                        }
-                    }
-                }
-                if (!results.isEmpty()) {
-                    return results.size() > 1 ? results : results.get(0);
-                }
-                return null;
-            }
-        };
-
-        return op.execute();
-    }
-
-    /**
      * Adds a property to this configuration. If this causes a database error, an error event will be generated of type
      * {@code ADD_PROPERTY} with the causing exception. The event's {@code propertyName} is set to the passed in property
      * key, the {@code propertyValue} points to the passed in value.
@@ -328,7 +335,7 @@ public class DatabaseConfiguration extends AbstractConfiguration {
      */
     @Override
     protected void addPropertyDirect(final String key, final Object obj) {
-        new JdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.ADD_PROPERTY, key, obj) {
+        new AbstractJdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.ADD_PROPERTY, key, obj) {
             @Override
             protected Void performOperation() throws SQLException {
                 final StringBuilder query = new StringBuilder("INSERT INTO ");
@@ -378,48 +385,21 @@ public class DatabaseConfiguration extends AbstractConfiguration {
     }
 
     /**
-     * Checks if this configuration is empty. If this causes a database error, an error event will be generated of type
-     * {@code READ} with the causing exception. Both the event's {@code propertyName} and {@code propertyValue} will be
-     * undefined.
-     *
-     * @return a flag whether this configuration is empty.
+     * Removes all entries from this configuration. If this causes a database error, an error event will be generated of
+     * type {@code CLEAR} with the causing exception. Both the event's {@code propertyName} and the {@code propertyValue}
+     * will be undefined.
      */
     @Override
-    protected boolean isEmptyInternal() {
-        final JdbcOperation<Integer> op = new JdbcOperation<Integer>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, null, null) {
+    protected void clearInternal() {
+        new AbstractJdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.CLEAR, null, null) {
             @Override
-            protected Integer performOperation() throws SQLException {
-                try (ResultSet rs = openResultSet(String.format(SQL_IS_EMPTY, table), true)) {
-                    return rs.next() ? Integer.valueOf(rs.getInt(1)) : null;
+            protected Void performOperation() throws SQLException {
+                try (PreparedStatement statement = initStatement(String.format(SQL_CLEAR, table), true)) {
+                    statement.executeUpdate();
                 }
+                return null;
             }
-        };
-
-        final Integer count = op.execute();
-        return count == null || count.intValue() == 0;
-    }
-
-    /**
-     * Checks whether this configuration contains the specified key. If this causes a database error, an error event will be
-     * generated of type {@code READ} with the causing exception. The event's {@code propertyName} will be set to the passed
-     * in key, the {@code propertyValue} will be undefined.
-     *
-     * @param key the key to be checked
-     * @return a flag whether this key is defined
-     */
-    @Override
-    protected boolean containsKeyInternal(final String key) {
-        final JdbcOperation<Boolean> op = new JdbcOperation<Boolean>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, key, null) {
-            @Override
-            protected Boolean performOperation() throws SQLException {
-                try (ResultSet rs = openResultSet(String.format(SQL_GET_PROPERTY, table, keyColumn), true, key)) {
-                    return rs.next();
-                }
-            }
-        };
-
-        final Boolean result = op.execute();
-        return result != null && result.booleanValue();
+        }.execute();
     }
 
     /**
@@ -431,7 +411,7 @@ public class DatabaseConfiguration extends AbstractConfiguration {
      */
     @Override
     protected void clearPropertyDirect(final String key) {
-        new JdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.CLEAR_PROPERTY, key, null) {
+        new AbstractJdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.CLEAR_PROPERTY, key, null) {
             @Override
             protected Void performOperation() throws SQLException {
                 try (PreparedStatement ps = initStatement(String.format(SQL_CLEAR_PROPERTY, table, keyColumn), true, key)) {
@@ -440,57 +420,6 @@ public class DatabaseConfiguration extends AbstractConfiguration {
                 }
             }
         }.execute();
-    }
-
-    /**
-     * Removes all entries from this configuration. If this causes a database error, an error event will be generated of
-     * type {@code CLEAR} with the causing exception. Both the event's {@code propertyName} and the {@code propertyValue}
-     * will be undefined.
-     */
-    @Override
-    protected void clearInternal() {
-        new JdbcOperation<Void>(ConfigurationErrorEvent.WRITE, ConfigurationEvent.CLEAR, null, null) {
-            @Override
-            protected Void performOperation() throws SQLException {
-                initStatement(String.format(SQL_CLEAR, table), true).executeUpdate();
-                return null;
-            }
-        }.execute();
-    }
-
-    /**
-     * Returns an iterator with the names of all properties contained in this configuration. If this causes a database
-     * error, an error event will be generated of type {@code READ} with the causing exception. Both the event's
-     * {@code propertyName} and the {@code propertyValue} will be undefined.
-     *
-     * @return an iterator with the contained keys (an empty iterator in case of an error)
-     */
-    @Override
-    protected Iterator<String> getKeysInternal() {
-        final Collection<String> keys = new ArrayList<>();
-        new JdbcOperation<Collection<String>>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, null, null) {
-            @Override
-            protected Collection<String> performOperation() throws SQLException {
-                try (ResultSet rs = openResultSet(String.format(SQL_GET_KEYS, keyColumn, table), true)) {
-                    while (rs.next()) {
-                        keys.add(rs.getString(1));
-                    }
-                    return keys;
-                }
-            }
-        }.execute();
-
-        return keys.iterator();
-    }
-
-    /**
-     * Returns the used {@code DataSource} object.
-     *
-     * @return the data source
-     * @since 1.4
-     */
-    public DataSource getDatasource() {
-        return dataSource;
     }
 
     /**
@@ -514,7 +443,7 @@ public class DatabaseConfiguration extends AbstractConfiguration {
                 stmt.close();
             }
         } catch (final SQLException e) {
-            getLogger().error("An error occured on closing the statement", e);
+            getLogger().error("An error occurred on closing the statement", e);
         }
 
         try {
@@ -522,8 +451,31 @@ public class DatabaseConfiguration extends AbstractConfiguration {
                 conn.close();
             }
         } catch (final SQLException e) {
-            getLogger().error("An error occured on closing the connection", e);
+            getLogger().error("An error occurred on closing the connection", e);
         }
+    }
+
+    /**
+     * Checks whether this configuration contains the specified key. If this causes a database error, an error event will be
+     * generated of type {@code READ} with the causing exception. The event's {@code propertyName} will be set to the passed
+     * in key, the {@code propertyValue} will be undefined.
+     *
+     * @param key the key to be checked
+     * @return a flag whether this key is defined
+     */
+    @Override
+    protected boolean containsKeyInternal(final String key) {
+        final AbstractJdbcOperation<Boolean> op = new AbstractJdbcOperation<Boolean>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, key, null) {
+            @Override
+            protected Boolean performOperation() throws SQLException {
+                try (ResultSet rs = openResultSet(String.format(SQL_GET_PROPERTY, table, keyColumn), true, key)) {
+                    return rs.next();
+                }
+            }
+        };
+
+        final Boolean result = op.execute();
+        return result != null && result.booleanValue();
     }
 
     /**
@@ -545,165 +497,215 @@ public class DatabaseConfiguration extends AbstractConfiguration {
     }
 
     /**
-     * Converts a CLOB to a string.
+     * Gets the name of this configuration instance.
      *
-     * @param clob the CLOB to be converted
-     * @return the extracted string value
-     * @throws SQLException if an error occurs
+     * @return the name of this configuration
      */
-    private static Object convertClob(final Clob clob) throws SQLException {
-        final int len = (int) clob.length();
-        return len > 0 ? clob.getSubString(1, len) : StringUtils.EMPTY;
+    public String getConfigurationName() {
+        return configurationName;
     }
 
     /**
-     * An internally used helper class for simplifying database access through plain JDBC. This class provides a simple
-     * framework for creating and executing a JDBC statement. It especially takes care of proper handling of JDBC resources
-     * even in case of an error.
+     * Gets the name of the table column with the configuration name.
      *
-     * @param <T> the type of the results produced by a JDBC operation
+     * @return the name of the configuration name column
      */
-    private abstract class JdbcOperation<T> {
-        /** Stores the connection. */
-        private Connection conn;
+    public String getConfigurationNameColumn() {
+        return configurationNameColumn;
+    }
 
-        /** Stores the statement. */
-        private PreparedStatement pstmt;
+    /**
+     * Gets the used {@code DataSource} object.
+     *
+     * @return the data source
+     * @since 1.4
+     */
+    public DataSource getDatasource() {
+        return dataSource;
+    }
 
-        /** Stores the result set. */
-        private ResultSet resultSet;
+    /**
+     * Gets the {@code DataSource} for obtaining database connections.
+     *
+     * @return the {@code DataSource}
+     */
+    public DataSource getDataSource() {
+        return dataSource;
+    }
 
-        /** The type of the event to send in case of an error. */
-        private final EventType<? extends ConfigurationErrorEvent> errorEventType;
+    /**
+     * Gets the name of the column containing the configuration keys.
+     *
+     * @return the name of the key column
+     */
+    public String getKeyColumn() {
+        return keyColumn;
+    }
 
-        /** The type of the operation which caused an error. */
-        private final EventType<?> operationEventType;
-
-        /** The property configurationName for an error event. */
-        private final String errorPropertyName;
-
-        /** The property value for an error event. */
-        private final Object errorPropertyValue;
-
-        /**
-         * Creates a new instance of {@code JdbcOperation} and initializes the properties related to the error event.
-         *
-         * @param errEvType the type of the error event
-         * @param opType the operation event type
-         * @param errPropName the property configurationName for the error event
-         * @param errPropVal the property value for the error event
-         */
-        protected JdbcOperation(final EventType<? extends ConfigurationErrorEvent> errEvType, final EventType<?> opType, final String errPropName,
-            final Object errPropVal) {
-            errorEventType = errEvType;
-            operationEventType = opType;
-            errorPropertyName = errPropName;
-            errorPropertyValue = errPropVal;
-        }
-
-        /**
-         * Executes this operation. This method obtains a database connection and then delegates to {@code performOperation()}.
-         * Afterwards it performs the necessary clean up. Exceptions that are thrown during the JDBC operation are caught and
-         * transformed into configuration error events.
-         *
-         * @return the result of the operation
-         */
-        public T execute() {
-            T result = null;
-
-            try {
-                conn = getDatasource().getConnection();
-                result = performOperation();
-
-                if (isAutoCommit()) {
-                    conn.commit();
+    /**
+     * Returns an iterator with the names of all properties contained in this configuration. If this causes a database
+     * error, an error event will be generated of type {@code READ} with the causing exception. Both the event's
+     * {@code propertyName} and the {@code propertyValue} will be undefined.
+     *
+     * @return an iterator with the contained keys (an empty iterator in case of an error)
+     */
+    @Override
+    protected Iterator<String> getKeysInternal() {
+        final Collection<String> keys = new ArrayList<>();
+        new AbstractJdbcOperation<Collection<String>>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, null, null) {
+            @Override
+            protected Collection<String> performOperation() throws SQLException {
+                try (ResultSet rs = openResultSet(String.format(SQL_GET_KEYS, keyColumn, table), true)) {
+                    while (rs.next()) {
+                        keys.add(rs.getString(1));
+                    }
+                    return keys;
                 }
-            } catch (final SQLException e) {
-                fireError(errorEventType, operationEventType, errorPropertyName, errorPropertyValue, e);
-            } finally {
-                close(conn, pstmt, resultSet);
             }
+        }.execute();
 
-            return result;
-        }
+        return keys.iterator();
+    }
 
-        /**
-         * Returns the current connection. This method can be called while {@code execute()} is running. It returns <b>null</b>
-         * otherwise.
-         *
-         * @return the current connection
-         */
-        protected Connection getConnection() {
-            return conn;
-        }
-
-        /**
-         * Creates a {@code PreparedStatement} object for executing the specified SQL statement.
-         *
-         * @param sql the statement to be executed
-         * @param nameCol a flag whether the configurationName column should be taken into account
-         * @return the prepared statement object
-         * @throws SQLException if an SQL error occurs
-         */
-        protected PreparedStatement createStatement(final String sql, final boolean nameCol) throws SQLException {
-            final String statement;
-            if (nameCol && configurationNameColumn != null) {
-                final StringBuilder buf = new StringBuilder(sql);
-                buf.append(" AND ").append(configurationNameColumn).append("=?");
-                statement = buf.toString();
-            } else {
-                statement = sql;
+    /**
+     * Gets the value of the specified property. If this causes a database error, an error event will be generated of
+     * type {@code READ} with the causing exception. The event's {@code propertyName} is set to the passed in property key,
+     * the {@code propertyValue} is undefined.
+     *
+     * @param key the key of the desired property
+     * @return the value of this property
+     */
+    @Override
+    protected Object getPropertyInternal(final String key) {
+        final AbstractJdbcOperation<Object> op = new AbstractJdbcOperation<Object>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, key, null) {
+            @Override
+            protected Object performOperation() throws SQLException {
+                final List<Object> results = new ArrayList<>();
+                try (ResultSet rs = openResultSet(String.format(SQL_GET_PROPERTY, table, keyColumn), true, key)) {
+                    while (rs.next()) {
+                        // Split value if it contains the list delimiter
+                        getListDelimiterHandler().parse(extractPropertyValue(rs)).forEach(results::add);
+                    }
+                }
+                if (!results.isEmpty()) {
+                    return results.size() > 1 ? results : results.get(0);
+                }
+                return null;
             }
+        };
 
-            pstmt = getConnection().prepareStatement(statement);
-            return pstmt;
-        }
+        return op.execute();
+    }
 
-        /**
-         * Creates an initializes a {@code PreparedStatement} object for executing an SQL statement. This method first calls
-         * {@code createStatement()} for creating the statement and then initializes the statement's parameters.
-         *
-         * @param sql the statement to be executed
-         * @param nameCol a flag whether the configurationName column should be taken into account
-         * @param params the parameters for the statement
-         * @return the initialized statement object
-         * @throws SQLException if an SQL error occurs
-         */
-        protected PreparedStatement initStatement(final String sql, final boolean nameCol, final Object... params) throws SQLException {
-            final PreparedStatement ps = createStatement(sql, nameCol);
+    /**
+     * Gets the name of the table containing configuration data.
+     *
+     * @return the name of the table to be queried
+     */
+    public String getTable() {
+        return table;
+    }
 
-            int idx = 1;
-            for (final Object param : params) {
-                ps.setObject(idx++, param);
+    /**
+     * Gets the name of the column containing the configuration values.
+     *
+     * @return the name of the value column
+     */
+    public String getValueColumn() {
+        return valueColumn;
+    }
+
+    /**
+     * Returns a flag whether this configuration performs commits after database updates.
+     *
+     * @return a flag whether commits are performed
+     */
+    public boolean isAutoCommit() {
+        return autoCommit;
+    }
+
+    /**
+     * Checks if this configuration is empty. If this causes a database error, an error event will be generated of type
+     * {@code READ} with the causing exception. Both the event's {@code propertyName} and {@code propertyValue} will be
+     * undefined.
+     *
+     * @return a flag whether this configuration is empty.
+     */
+    @Override
+    protected boolean isEmptyInternal() {
+        final AbstractJdbcOperation<Integer> op = new AbstractJdbcOperation<Integer>(ConfigurationErrorEvent.READ, ConfigurationErrorEvent.READ, null, null) {
+            @Override
+            protected Integer performOperation() throws SQLException {
+                try (ResultSet rs = openResultSet(String.format(SQL_IS_EMPTY, table), true)) {
+                    return rs.next() ? Integer.valueOf(rs.getInt(1)) : null;
+                }
             }
-            if (nameCol && configurationNameColumn != null) {
-                ps.setString(idx, configurationName);
-            }
+        };
 
-            return ps;
-        }
+        final Integer count = op.execute();
+        return count == null || count.intValue() == 0;
+    }
 
-        /**
-         * Creates a {@code PreparedStatement} for a query, initializes it and executes it. The resulting {@code ResultSet} is
-         * returned.
-         *
-         * @param sql the statement to be executed
-         * @param nameCol a flag whether the configurationName column should be taken into account
-         * @param params the parameters for the statement
-         * @return the {@code ResultSet} produced by the query
-         * @throws SQLException if an SQL error occurs
-         */
-        protected ResultSet openResultSet(final String sql, final boolean nameCol, final Object... params) throws SQLException {
-            return resultSet = initStatement(sql, nameCol, params).executeQuery();
-        }
+    /**
+     * Sets the auto commit flag. If set to <b>true</b>, this configuration performs a commit after each database update.
+     *
+     * @param autoCommit the auto commit flag
+     */
+    public void setAutoCommit(final boolean autoCommit) {
+        this.autoCommit = autoCommit;
+    }
 
-        /**
-         * Performs the JDBC operation. This method is called by {@code execute()} after this object has been fully initialized.
-         * Here the actual JDBC logic has to be placed.
-         *
-         * @return the result of the operation
-         * @throws SQLException if an SQL error occurs
-         */
-        protected abstract T performOperation() throws SQLException;
+    /**
+     * Sets the name of this configuration instance.
+     *
+     * @param configurationName the name of this configuration
+     */
+    public void setConfigurationName(final String configurationName) {
+        this.configurationName = configurationName;
+    }
+
+    /**
+     * Sets the name of the table column with the configuration name.
+     *
+     * @param configurationNameColumn the name of the column with the configuration name
+     */
+    public void setConfigurationNameColumn(final String configurationNameColumn) {
+        this.configurationNameColumn = configurationNameColumn;
+    }
+
+    /**
+     * Sets the {@code DataSource} for obtaining database connections.
+     *
+     * @param dataSource the {@code DataSource}
+     */
+    public void setDataSource(final DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    /**
+     * Sets the name of the column containing the configuration keys.
+     *
+     * @param keyColumn the name of the key column
+     */
+    public void setKeyColumn(final String keyColumn) {
+        this.keyColumn = keyColumn;
+    }
+
+    /**
+     * Sets the name of the table containing configuration data.
+     *
+     * @param table the table name
+     */
+    public void setTable(final String table) {
+        this.table = table;
+    }
+
+    /**
+     * Sets the name of the column containing the configuration values.
+     *
+     * @param valueColumn the name of the value column
+     */
+    public void setValueColumn(final String valueColumn) {
+        this.valueColumn = valueColumn;
     }
 }

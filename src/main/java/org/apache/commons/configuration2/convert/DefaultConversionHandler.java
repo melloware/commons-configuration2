@@ -68,12 +68,6 @@ public class DefaultConversionHandler implements ConversionHandler {
     /** The default {@link ListDelimiterHandler} used for extracting values from complex objects. */
     static final ListDelimiterHandler LIST_DELIMITER_HANDLER = DisabledListDelimiterHandler.INSTANCE;
 
-    /** The current date format. */
-    private volatile String dateFormat;
-
-    /** The default {@link ListDelimiterHandler} used for extracting values from complex objects. */
-    private volatile ListDelimiterHandler listDelimiterHandler = DisabledListDelimiterHandler.INSTANCE;
-
     /**
      * Obtains a {@code ConfigurationInterpolator}. If the passed in one is not <b>null</b>, it is used. Otherwise, a
      * default one is returned.
@@ -84,6 +78,12 @@ public class DefaultConversionHandler implements ConversionHandler {
     private static ConfigurationInterpolator fetchInterpolator(final ConfigurationInterpolator ci) {
         return ci != null ? ci : NULL_INTERPOLATOR;
     }
+
+    /** The current date format. */
+    private volatile String dateFormat;
+
+    /** The default {@link ListDelimiterHandler} used for extracting values from complex objects. */
+    private volatile ListDelimiterHandler listDelimiterHandler = DisabledListDelimiterHandler.INSTANCE;
 
     /**
      * Performs the conversion from the passed in source object to the specified target class. This method is called for
@@ -182,7 +182,7 @@ public class DefaultConversionHandler implements ConversionHandler {
     }
 
     /**
-     * Returns the date format used by this conversion handler.
+     * Gets the date format used by this conversion handler.
      *
      * @return the date format
      */
@@ -233,7 +233,7 @@ public class DefaultConversionHandler implements ConversionHandler {
 
     /**
      * Sets the date format to be used by this conversion handler. This format is applied by conversions to {@code Date} or
-     * {@code Calendar} objects. The string is passed to the {@code java.text.SimpleDateFormat} class, so it must be
+     * {@code Calendar} objects. The string is passed to the {@link java.text.SimpleDateFormat} class, so it must be
      * compatible with this class. If no date format has been set, a default format is used.
      *
      * @param dateFormat the date format string

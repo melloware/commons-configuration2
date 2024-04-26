@@ -17,7 +17,6 @@
 package org.apache.commons.configuration2.tree;
 
 import java.io.PrintStream;
-import java.util.Map;
 
 /**
  * Utility methods.
@@ -25,10 +24,6 @@ import java.util.Map;
  * @since 1.7
  */
 public final class TreeUtils {
-    /** Prevent creating this class. */
-    private TreeUtils() {
-    }
-
     /**
      * Print out the data in the configuration.
      *
@@ -43,9 +38,7 @@ public final class TreeUtils {
 
     private static void printTree(final PrintStream stream, final String indent, final ImmutableNode result) {
         final StringBuilder buffer = new StringBuilder(indent).append("<").append(result.getNodeName());
-        for (final Map.Entry<String, Object> e : result.getAttributes().entrySet()) {
-            buffer.append(' ').append(e.getKey()).append("='").append(e.getValue()).append("'");
-        }
+        result.getAttributes().forEach((k, v) -> buffer.append(' ').append(k).append("='").append(v).append("'"));
         buffer.append(">");
         stream.print(buffer.toString());
         if (result.getValue() != null) {
@@ -54,14 +47,16 @@ public final class TreeUtils {
         boolean newline = false;
         if (!result.getChildren().isEmpty()) {
             stream.print("\n");
-            for (final ImmutableNode child : result) {
-                printTree(stream, indent + "  ", child);
-            }
+            result.forEach(child -> printTree(stream, indent + "  ", child));
             newline = true;
         }
         if (newline) {
             stream.print(indent);
         }
         stream.println("</" + result.getNodeName() + ">");
+    }
+
+    /** Prevent creating this class. */
+    private TreeUtils() {
     }
 }

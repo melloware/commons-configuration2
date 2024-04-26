@@ -63,31 +63,6 @@ public final class EventListenerRegistrationData<T extends Event> {
     }
 
     /**
-     * Returns the event type for this listener registration.
-     *
-     * @return the event type
-     */
-    public EventType<T> getEventType() {
-        return eventType;
-    }
-
-    /**
-     * Returns the listener this registration is about.
-     *
-     * @return the event listener
-     */
-    public EventListener<? super T> getListener() {
-        return listener;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = eventType.hashCode();
-        result = HASH_FACTOR * result + listener.hashCode();
-        return result;
-    }
-
-    /**
      * Compares this object with another one. Two instances of {@code EventListenerRegistrationData} are considered equal if
      * they reference the same listener and event type.
      *
@@ -105,5 +80,29 @@ public final class EventListenerRegistrationData<T extends Event> {
 
         final EventListenerRegistrationData<?> c = (EventListenerRegistrationData<?>) obj;
         return getListener() == c.getListener() && getEventType().equals(c.getEventType());
+    }
+
+    /**
+     * Gets the event type for this listener registration.
+     *
+     * @return the event type
+     */
+    public EventType<T> getEventType() {
+        return eventType;
+    }
+
+    /**
+     * Gets the listener this registration is about.
+     *
+     * @return the event listener
+     */
+    public EventListener<? super T> getListener() {
+        return listener;
+    }
+
+    @Override
+    public int hashCode() {
+        final int result = eventType.hashCode();
+        return HASH_FACTOR * result + listener.hashCode();
     }
 }
