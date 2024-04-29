@@ -47,8 +47,10 @@ Apache Commons Configuration2
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.melloware/commons-configuration2/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.melloware/commons-configuration2/)
 
 
-Tools to assist in the reading of configuration/preferences files in
-        various formats
+Tools to assist in the reading of configuration/preferences files in various formats
+
+> [!NOTE]  
+> This version keeps in line with the main Apache version however it uses a custom BeanUtils2 so it can remove legacy BeanUtils and Commons Collections support for BeanUtils2 and Commons Collections4.
 
 Documentation
 -------------
