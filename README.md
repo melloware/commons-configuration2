@@ -69,7 +69,7 @@ Alternatively you can pull it from the central Maven repositories:
 <dependency>
   <groupId>com.melloware</groupId>
   <artifactId>commons-configuration2</artifactId>
-  <version>2.8.1</version>
+  <version>2.10.2</version>
 </dependency>
 ```
 
